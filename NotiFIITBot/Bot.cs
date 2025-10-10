@@ -5,6 +5,7 @@ using Telegram.Bot.Exceptions;
 using Telegram.Bot.Polling;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
+using Telegram.Bot.Types.ReplyMarkups;
 
 namespace NotiFIITBot;
 
@@ -31,18 +32,19 @@ public class Bot
             this.cts = cts;
             bot = new TelegramBotClient(token: token);
 
-            var info = await bot.GetMe();
+            using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            var info = await bot.GetMe(timeoutCts.Token);
             Log.Information($"Bot {info.Username} started to work");
 
             var receiverOptions = new ReceiverOptions
             {
-                AllowedUpdates = [UpdateType.Message],
+                AllowedUpdates = [UpdateType.Message, UpdateType.CallbackQuery],
                 DropPendingUpdates = true
             };
 
             bot.StartReceiving(
-                updateHandler: HandleUpdateAsync,
-                errorHandler: HandlePollingErrorAsync,
+                updateHandler: HandleUpdate,
+                errorHandler: HandlePollingError,
                 receiverOptions: receiverOptions,
                 cancellationToken: this.cts.Token
             );
@@ -56,7 +58,7 @@ public class Bot
         }
     }
 
-    private async Task HandleUpdateAsync(ITelegramBotClient botClient, Update update, CancellationToken cancellationToken)
+    private async Task HandleUpdate(ITelegramBotClient botClient, Update update, CancellationToken cancellationToken)
     {
         try
         {
@@ -66,6 +68,12 @@ public class Bot
                     Log.Information($"Received message from {message.From?.Username ?? "unknown"}");
                     await HandleMessage(message);
                     break;
+
+                case { CallbackQuery: { } cbQuery }:
+                    Log.Information($"Callback query from {cbQuery.From.Username}");
+                    await HandleCallbackQuery(cbQuery);
+                    break;
+
                 default:
                     Log.Information($"Received {update.Type} update type");
                     break;
@@ -77,7 +85,33 @@ public class Bot
         }
     }
 
-    private async Task HandlePollingErrorAsync(ITelegramBotClient botClient, Exception exception, CancellationToken cancellationToken)
+    private async Task HandleCallbackQuery(CallbackQuery cbQuery)
+    {
+        var sched = cbQuery.Data switch
+        {
+            "today" => "Тест: расписание на сегодня",
+            "tomorrow" => "Тест: расписание на завтра",
+            "week" => "Тест: расписание на неделю",
+            "2week" => "Тест: расписание на 2 недели",
+            _ => null
+        };
+
+        if (sched == null)
+        {
+            Log.Error($"Can't handle CallbackQuery with message {cbQuery.Message}");
+            sched = "Произошла ошибка";
+        }
+
+
+        await bot.EditMessageText(
+            cbQuery.Message.Chat,
+            cbQuery.Message.Id,
+            sched
+            );
+        await bot.AnswerCallbackQuery(cbQuery.Id);
+    }
+
+    private async Task HandlePollingError(ITelegramBotClient botClient, Exception exception, CancellationToken cancellationToken)
     {
         await Task.Run(() =>
         {
@@ -113,6 +147,10 @@ public class Bot
                         parseMode: ParseMode.Html);
                     break;
 
+                case "/sched":
+                    await AskSchedule(message);
+                    break;
+
                 case "/help":
                     await SendHelpMessage(message);
                     break;
@@ -129,6 +167,17 @@ public class Bot
                         "Я не понял о чем ты...\nНапиши /help, если не знаешь с чего начать!");
                     break;
             }
+    }
+
+    private async Task AskSchedule(Message message)
+    {
+        var schedInlineMarkup = new InlineKeyboardMarkup()
+            .AddButton("Сегодня", "today")
+            .AddButton("Завтра", "tomorrow")
+            .AddNewRow()
+            .AddButton("Неделя", "week")
+            .AddButton("2 недели", "2week");
+        await bot.SendMessage(message.Chat, "Выбери какое расписание тебе нужно:", replyMarkup: schedInlineMarkup);
     }
 
     private bool IsAdmin(User user)
