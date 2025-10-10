@@ -151,6 +151,17 @@ public class Bot
                     await AskSchedule(message);
                     break;
 
+                case "/slots":
+                    await bot.SendMessage(
+                        message.Chat.Id,
+                        "Додепчик пошел"
+                        );
+                    await bot.SendDice(
+                        message.Chat.Id,
+                        "🎰"
+                        );
+                    break;
+
                 case "/help":
                     await SendHelpMessage(message);
                     break;
