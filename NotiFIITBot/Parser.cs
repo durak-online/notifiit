@@ -4,6 +4,8 @@ namespace NotiFIITBot;
 
 public static class Parser
 {
+    private static readonly int[] DivisionIds = [62404, 62403];
+
     public static async Task<Lesson> GetLesson(string group, DateOnly date, int pairNumber, int subGroup)
     {
         using var client = new HttpClient();
@@ -56,12 +58,24 @@ public static class Parser
         return -1;
     }
 
-    public static Lesson GetLesson(string groupId, DateTime date, int subGroup)//ищем ближайшее начало пары и возвращаем его
+    public static async Task<List<Group>> GetGroups(int course)
     {
-        throw new NotImplementedException();
+        var groups = new List<Group>();
+        foreach (var divisionId in DivisionIds)
+        {
+            groups.AddRange(await GetGroups( course, divisionId));
+        }
+        return groups;
     }
     
-    
+    private static async Task<List<Group>?> GetGroups(int course, int divisionId)
+    {
+        using var client = new HttpClient();
+        var url = $"https://urfu.ru/api/v2/schedule/divisions/{divisionId}/groups?course={course}";
+        var json = await client.GetStringAsync(url);
+        var groups = JsonSerializer.Deserialize<List<Group>>(json);
+        return groups;
+    }
 }
 
 public class Lesson

@@ -14,6 +14,16 @@ public class ParserTests
         Assert.That(r.Date ==  lesson.Date);
         Assert.That(r.SubjectName ==  lesson.SubjectName);
     }
-
+    
+    [Test]
+    public async Task GetGroups_ReturnsGroups_WhenEventMatches()
+    {
+        var groups = await Parser.GetGroups(2);
+        foreach (var group in groups)
+        {
+            Console.WriteLine(group);
+        }
+        Assert.That(groups.Count > 1);
+    }
 }
 
