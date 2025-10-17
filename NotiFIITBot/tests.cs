@@ -21,9 +21,17 @@ public class ParserTests
         var groups = await Parser.GetGroups(2);
         foreach (var group in groups)
         {
-            Console.WriteLine(group);
+            Console.WriteLine(group.title);
         }
         Assert.That(groups.Count > 1);
+    }
+    
+    [Test]
+    public async Task GetGroupId() 
+    {
+        var id = Parser.GetGroupId("240801");
+        Console.WriteLine(id);
+        Assert.That(id.Result == 63804); 
     }
 }
 

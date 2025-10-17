@@ -4,7 +4,7 @@ namespace NotiFIITBot;
 
 public static class Parser
 {
-    private static readonly int[] DivisionIds = [62404, 62403];
+    private static readonly int[] DivisionIds = [62404, 62403]; //Точно такие и удобно ли это?
 
     public static async Task<Lesson> GetLesson(string group, DateOnly date, int pairNumber, int subGroup)
     {
@@ -42,7 +42,7 @@ public static class Parser
         return null;
     }
 
-    private static async Task<int> GetGroupId(string groupName)
+    public static async Task<int> GetGroupId(string groupName)
     {
         using var client = new HttpClient();
         var url = "https://urfu.ru/api/v2/schedule/groups?search=" +  groupName;
@@ -63,7 +63,7 @@ public static class Parser
         var groups = new List<Group>();
         foreach (var divisionId in DivisionIds)
         {
-            groups.AddRange(await GetGroups( course, divisionId));
+            groups.AddRange(await GetGroups(course, divisionId));
         }
         return groups;
     }
