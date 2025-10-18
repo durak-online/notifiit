@@ -11,15 +11,14 @@ namespace NotiFIITBot;
 
 public class Bot
 {
-    private TelegramBotClient bot;
-    private readonly string token;
     private readonly long creatorId;
+    private readonly string token;
+    private TelegramBotClient bot;
     private CancellationTokenSource cts;
 
     public Bot()
     {
-
-        DotEnv.Load(options: new DotEnvOptions(ignoreExceptions: false));
+        DotEnv.Load(new DotEnvOptions(false));
         var variables = DotEnv.Read();
         token = variables["TELEGRAM_BOT_TOKEN"];
         creatorId = long.Parse(variables["CREATOR_ID"]);
@@ -30,7 +29,7 @@ public class Bot
         try
         {
             this.cts = cts;
-            bot = new TelegramBotClient(token: token);
+            bot = new TelegramBotClient(token);
 
             using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
             var info = await bot.GetMe(timeoutCts.Token);
@@ -43,10 +42,10 @@ public class Bot
             };
 
             bot.StartReceiving(
-                updateHandler: HandleUpdate,
-                errorHandler: HandlePollingError,
-                receiverOptions: receiverOptions,
-                cancellationToken: this.cts.Token
+                HandleUpdate,
+                HandlePollingError,
+                receiverOptions,
+                this.cts.Token
             );
 
             Log.Information("Bot is now receiving updates...");
@@ -107,11 +106,12 @@ public class Bot
             cbQuery.Message.Chat,
             cbQuery.Message.Id,
             sched
-            );
+        );
         await bot.AnswerCallbackQuery(cbQuery.Id);
     }
 
-    private async Task HandlePollingError(ITelegramBotClient botClient, Exception exception, CancellationToken cancellationToken)
+    private async Task HandlePollingError(ITelegramBotClient botClient, Exception exception,
+        CancellationToken cancellationToken)
     {
         await Task.Run(() =>
         {
@@ -144,7 +144,7 @@ public class Bot
                     await bot.SendMessage(
                         message.Chat.Id,
                         "Добро пожаловать! Посмотри список доступных команд в <b>Меню</b>",
-                        parseMode: ParseMode.Html);
+                        ParseMode.Html);
                     break;
 
                 case "/sched":
@@ -155,11 +155,11 @@ public class Bot
                     await bot.SendMessage(
                         message.Chat.Id,
                         "Додепчик пошел"
-                        );
+                    );
                     await bot.SendDice(
                         message.Chat.Id,
                         "🎰"
-                        );
+                    );
                     break;
 
                 case "/help":
@@ -200,7 +200,8 @@ public class Bot
 
     private async Task SendHelpMessage(Message message)
     {
-        var answer = "Это бот для отправки расписания. Пока тут немного возможностей, но попробуй что-то из <b>Меню</b>";
-        await bot.SendMessage(message.Chat.Id, answer, parseMode: ParseMode.Html);
+        var answer =
+            "Это бот для отправки расписания. Пока тут немного возможностей, но попробуй что-то из <b>Меню</b>";
+        await bot.SendMessage(message.Chat.Id, answer, ParseMode.Html);
     }
 }
