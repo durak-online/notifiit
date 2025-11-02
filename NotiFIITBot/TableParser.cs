@@ -84,7 +84,7 @@ public class TableParser
         // Непосредственно обработка ячеек с расписанием
         var currentDayOfWeek = "";
         TimeOnly? currentTime = null;
-        int? currentPairNumber = null;
+        int currentPairNumber = -1;
 
         for (var i = 3; i < values.Count; i++)
         {
@@ -123,10 +123,11 @@ public class TableParser
                         lessonInfo.ClassRoom,
                         currentTime,
                         null,
-                        null,
+                        null,//TODO нельзя оставлять пустым, подумай как сделать, помнится там привязка к цвету
                         columnSubgroupMap[j],
-                        columnGroupMap[j],
-                        lessonInfo.Date
+                        1,//columnGroupMap[j],//TODO нужно вырезать из строки кусок с чиселками и сюда его
+                        Evenness.Even,//TODO хз как у тебя тут все работает но думаю понятно че сюда запихать 
+                        DayOfWeek.Monday//TODO
                     );
                     lessons.Add(lesson);
                 }
@@ -136,14 +137,14 @@ public class TableParser
         return lessons;
     }
 
-    private static int? ParseRomanNumeral(string roman)
+    private static int ParseRomanNumeral(string roman)
     {
-        if (string.IsNullOrWhiteSpace(roman)) return null;
+        if (string.IsNullOrWhiteSpace(roman)) return -1;
         return roman.ToUpper() switch
         {
             "I" => 1, "II" => 2, "III" => 3, "IV" => 4,
             "V" => 5, "VI" => 6, "VII" => 7,
-            _ => null
+            _ => -1
         };
     }
 
