@@ -1,6 +1,7 @@
 using System.Text.RegularExpressions;
 using Google.Apis.Services;
 using Google.Apis.Sheets.v4;
+using Google.Apis.Sheets.v4.Data;
 
 namespace NotiFIITBot;
 
@@ -29,6 +30,7 @@ public class TableParser
                 Console.WriteLine($"Группа: {lesson.MenGroup}, " + $"Подгруппа: {lesson.SubGroup}, " +
                                   $"Предмет: {lesson.SubjectName}, " +
                                   $"Преподаватель: {lesson.TeacherName}, " +
+                                  $"Локация: {lesson.AuditoryLocation}, " +
                                   $"Аудитория: {lesson.ClassRoom}, " +
                                   $"Пара №: {lesson.PairNumber}, " +
                                   $"Начало: {lesson.Begin}");
@@ -50,7 +52,15 @@ public class TableParser
         var request = service.Spreadsheets.Values.Get(spreadsheetId, range);
         var response = request.Execute();
         var values = response.Values;
-
+        
+        var detailRequest = service.Spreadsheets.Get(spreadsheetId);
+        detailRequest.Ranges = range;
+        detailRequest.IncludeGridData = true; 
+        
+        var spreadsheet = detailRequest.Execute();
+        var sheet = spreadsheet.Sheets[0];
+        var gridData = sheet.Data[0];
+        
         var lessons = new List<Lesson>();
 
         if (values == null || values.Count < 4)
@@ -114,6 +124,8 @@ public class TableParser
                 if (string.IsNullOrWhiteSpace(lessonCell) || !columnSubgroupMap.ContainsKey(j)) continue;
 
                 var lessonInfo = ParseLessonCell(lessonCell);
+                var location = GetLocationByColor(gridData.RowData[i].Values[j]);
+                var menGroup = int.Parse(columnGroupMap[j].Split("-")[1]);
                 if (lessonInfo != null)
                 {
                     var lesson = new Lesson(
@@ -123,9 +135,9 @@ public class TableParser
                         lessonInfo.ClassRoom,
                         currentTime,
                         null,
-                        null,//TODO нельзя оставлять пустым, подумай как сделать, помнится там привязка к цвету
+                        location,//TODO нельзя оставлять пустым, подумай как сделать, помнится там привязка к цвету
                         columnSubgroupMap[j],
-                        1,//columnGroupMap[j],//TODO нужно вырезать из строки кусок с чиселками и сюда его
+                        menGroup, //TODO нужно вырезать из строки кусок с чиселками и сюда его
                         Evenness.Even,//TODO хз как у тебя тут все работает но думаю понятно че сюда запихать 
                         DayOfWeek.Monday//TODO
                     );
@@ -146,6 +158,20 @@ public class TableParser
             "V" => 5, "VI" => 6, "VII" => 7,
             _ => -1
         };
+    }
+    
+    private static string GetLocationByColor(CellData cell)
+    {
+        var bgColor = cell.EffectiveFormat?.BackgroundColor;
+        Console.WriteLine($"!{bgColor.Red} {bgColor.Green} {bgColor.Blue}");
+        
+        if ( bgColor.Red == 0.9411765f && bgColor.Green == 1f && bgColor.Blue == 0.6862745f)
+            return "Куйбышева, 48";
+        
+        if (bgColor.Red == 0.8980392f && bgColor.Green == 0.9372549f &&  bgColor.Blue == 1f)
+            return "Онлайн";
+        
+        return "Тургенева, 4";
     }
 
     private static ParsedLessonInfo? ParseLessonCell(string cell)

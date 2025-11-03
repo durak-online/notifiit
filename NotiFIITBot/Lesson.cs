@@ -3,7 +3,7 @@ namespace NotiFIITBot;
 public class Lesson
 {
     public Lesson(int pairNumber, string? subjectName, string? teacherName, string? classRoom, TimeOnly? begin,
-        TimeOnly? end, string? auditoryLocation, int subGroup, int menGroup, Evenness evennessOfWeek, DayOfWeek dayOfWeek)
+        TimeOnly? end, string? auditoryLocation, int subGroup, int menGroup, Evenness evennessOfWeek, DayOfWeek? dayOfWeek)
     {
         PairNumber = pairNumber;
         SubjectName = subjectName;
@@ -25,7 +25,7 @@ public class Lesson
     public TimeOnly? Begin { get; set; }
     public TimeOnly? End { get; set; }
     
-    public DayOfWeek DayOfWeek { get; set; }
+    public DayOfWeek? DayOfWeek { get; set; }
     public Evenness EvennessOfWeek { get; set; }
     public string? AuditoryLocation { get; set; }
     public int? SubGroup { get; set; }
