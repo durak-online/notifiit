@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  NotiFIITDataBase:
+    image: postgres:18
+    container_name: schedule-postgres
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:
