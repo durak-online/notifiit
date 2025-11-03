@@ -23,8 +23,11 @@ public class Program
 
         try
         {
-            var bot = new Bot();
+            using var bot = new Bot();
+            var notifier = new Notifier(bot);
+
             await bot.Initialize(cts);
+            await notifier.Start();
 
             await Task.Delay(Timeout.Infinite, cts.Token);
         }
