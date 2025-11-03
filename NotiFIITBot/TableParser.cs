@@ -56,7 +56,6 @@ public class TableParser
         var detailRequest = service.Spreadsheets.Get(spreadsheetId);
         detailRequest.Ranges = range;
         detailRequest.IncludeGridData = true; 
-        
         var spreadsheet = detailRequest.Execute();
         var sheet = spreadsheet.Sheets[0];
         var gridData = sheet.Data[0];
@@ -99,7 +98,10 @@ public class TableParser
         for (var i = 3; i < values.Count; i++)
         {
             var row = values[i];
-
+            
+            // Пропускаем пустые строки или строки с общей информацией
+            if (row == null || row.Count == 0) continue;
+            
             // Получаю день недели, может пригодится
             if (row.Count > 0 && !string.IsNullOrWhiteSpace(row[0]?.ToString())) currentDayOfWeek = row[0].ToString();
 
@@ -111,7 +113,18 @@ public class TableParser
 
                 if (parts.Length > 0) currentPairNumber = ParseRomanNumeral(parts[0]);
 
-                if (TimeOnly.TryParse(parts[1], out var time)) currentTime = time;
+                if (TimeOnly.TryParse(parts[1], out var time))
+                {
+                    currentTime = time;
+                }
+                else
+                {
+                    currentTime = null;
+                }
+            }
+            else
+            {
+                currentTime = null;
             }
 
             if (currentTime == null || string.IsNullOrWhiteSpace(currentDayOfWeek)) continue; //скип информационной
@@ -163,7 +176,7 @@ public class TableParser
     private static string GetLocationByColor(CellData cell)
     {
         var bgColor = cell.EffectiveFormat?.BackgroundColor;
-        Console.WriteLine($"!{bgColor.Red} {bgColor.Green} {bgColor.Blue}");
+        //Console.WriteLine($"!{bgColor.Red} {bgColor.Green} {bgColor.Blue}");
         
         if ( bgColor.Red == 0.9411765f && bgColor.Green == 1f && bgColor.Blue == 0.6862745f)
             return "Куйбышева, 48";
@@ -177,10 +190,18 @@ public class TableParser
     private static ParsedLessonInfo? ParseLessonCell(string cell)
     {
         var info = new ParsedLessonInfo();
+        if (cell.Contains("Физкультура"))
+        {
+            info.SubjectName = "Физкультура";
+            return info;
+        }
 
         //Убираем пометки "такое-то время с такой-то даты", не убрал "углублённая группа"
         var cleanCell = Regex.Replace(cell, @"\s*(?:\d{1,2}:\d{2}-\d{1,2}:\d{2}\s+)?с\s+\d{1,2}\s+\w+.*$", "").Trim();
-
+        
+        //Отдельно убираем "углублённая группа"
+        cleanCell = Regex.Replace(cleanCell, @"углублённая группа", "", RegexOptions.IgnoreCase).Trim();
+        
         var parts = cleanCell.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .ToList();
         if (parts.Count == 0) return null;
