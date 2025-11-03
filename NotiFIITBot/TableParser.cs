@@ -27,7 +27,8 @@ public class TableParser
             var scheduleData = GetTableData(apiKey, spreadsheetId, range);
 
             foreach (var lesson in scheduleData)
-                Console.WriteLine($"Группа: {lesson.MenGroup}, " + $"Подгруппа: {lesson.SubGroup}, " +
+                Console.WriteLine($"День: {lesson.DayOfWeek}, " +
+                                  $"Группа: {lesson.MenGroup}, " + $"Подгруппа: {lesson.SubGroup}, " +
                                   $"Предмет: {lesson.SubjectName}, " +
                                   $"Преподаватель: {lesson.TeacherName}, " +
                                   $"Локация: {lesson.AuditoryLocation}, " +
@@ -148,11 +149,11 @@ public class TableParser
                         lessonInfo.ClassRoom,
                         currentTime,
                         null,
-                        location,//TODO нельзя оставлять пустым, подумай как сделать, помнится там привязка к цвету
+                        location,
                         columnSubgroupMap[j],
-                        menGroup, //TODO нужно вырезать из строки кусок с чиселками и сюда его
+                        menGroup, 
                         Evenness.Even,//TODO хз как у тебя тут все работает но думаю понятно че сюда запихать 
-                        DayOfWeek.Monday//TODO
+                        ParseDayOfWeek(currentDayOfWeek) 
                     );
                     lessons.Add(lesson);
                 }
@@ -162,6 +163,22 @@ public class TableParser
         return lessons;
     }
 
+    private static DayOfWeek? ParseDayOfWeek(string day)
+    {
+        if (string.IsNullOrWhiteSpace(day)) return null;
+        
+        return day.ToUpper() switch
+        {
+            "ПН" => DayOfWeek.Monday,
+            "ВТ" => DayOfWeek.Tuesday,
+            "СР" => DayOfWeek.Wednesday,
+            "ЧТ" => DayOfWeek.Thursday, 
+            "ПТ" => DayOfWeek.Friday,
+            "СБ" => DayOfWeek.Saturday,
+            "ВС" => DayOfWeek.Sunday,
+            _ => null
+        };
+    }
     private static int ParseRomanNumeral(string roman)
     {
         if (string.IsNullOrWhiteSpace(roman)) return -1;
