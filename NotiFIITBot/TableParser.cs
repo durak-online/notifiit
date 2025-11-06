@@ -2,6 +2,7 @@ using System.Text.RegularExpressions;
 using Google.Apis.Services;
 using Google.Apis.Sheets.v4;
 using Google.Apis.Sheets.v4.Data;
+using Serilog;
 
 namespace NotiFIITBot;
 
@@ -34,11 +35,12 @@ public class TableParser
                                   $"Локация: {lesson.AuditoryLocation}, " +
                                   $"Аудитория: {lesson.ClassRoom}, " +
                                   $"Пара №: {lesson.PairNumber}, " +
-                                  $"Начало: {lesson.Begin}");
+                                  $"Начало: {lesson.Begin} " +
+                                  $"Четность: {lesson.EvennessOfWeek} ");
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Ошибка: {ex.Message}");
+            Log.Error($"Ошибка: {ex.Message}");
         }
     }
 
@@ -47,22 +49,18 @@ public class TableParser
         var service = new SheetsService(new BaseClientService.Initializer
         {
             ApiKey = apiKey,
-            ApplicationName = "Schedule Parser",
+            ApplicationName = "Schedule Parser"
         });
-
-        //var request = service.Spreadsheets.Values.Get(spreadsheetId, range); Было раньше
-        //var response = request.Execute();
-        //var valuesOld = response.Values;
         
         var values = GetValuesWithMergedCells(spreadsheetId, range, service);
-        
+
         var detailRequest = service.Spreadsheets.Get(spreadsheetId);
         detailRequest.Ranges = range;
-        detailRequest.IncludeGridData = true; 
+        detailRequest.IncludeGridData = true;
         var spreadsheet = detailRequest.Execute();
         var sheet = spreadsheet.Sheets[0];
         var gridData = sheet.Data[0];
-        
+
         var lessons = new List<Lesson>();
 
         if (values == null || values.Count < 4)
@@ -96,47 +94,31 @@ public class TableParser
         // Непосредственно обработка ячеек с расписанием
         var currentDayOfWeek = "";
         TimeOnly? currentTime = null;
-        int currentPairNumber = -1;
-        
-        //Console.WriteLine($"!!! {valuesMerged[35][2].ToString()}");
-        
+        var currentPairNumber = -1;
+        var seenLessons = new HashSet<string>();
+
         for (var i = 3; i < values.Count; i++)
         {
             var row = values[i];
-            
+
             // Пропускаем пустые строки или строки с общей информацией
             if (row == null || row.Count == 0)
-            {
-                //Console.WriteLine($"{values[i-1][2]}");
                 continue;
-            };
-            
-            // Получаю день недели, может пригодится
+
+            // Получаю день недели
             if (row.Count > 0 && !string.IsNullOrWhiteSpace(row[0]?.ToString())) currentDayOfWeek = row[0].ToString();
 
             // Номер пары и время начала
             if (row.Count > 1 && !string.IsNullOrWhiteSpace(row[1]?.ToString()))
             {
-                var timeCell = row[1].ToString();
-                var parts = timeCell.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-
-                if (parts.Length > 0) currentPairNumber = ParseRomanNumeral(parts[0]);
-
-                if (TimeOnly.TryParse(parts[1], out var time))
-                {
-                    currentTime = time;
-                }
-                else
-                {
-                    currentTime = null;
-                }
+                (currentTime,currentPairNumber) = GetTimeAndNumberOfPairFromCell(row);
             }
             else
             {
                 currentTime = null;
             }
 
-            if (currentTime == null || string.IsNullOrWhiteSpace(currentDayOfWeek)) continue; //скип информационной
+            if (currentTime == null || string.IsNullOrWhiteSpace(currentDayOfWeek)) continue;
 
             // Обработка ячеек
             for (var j = 2; j < row.Count; j++)
@@ -148,22 +130,38 @@ public class TableParser
                 var lessonInfo = ParseLessonCell(lessonCell);
                 var location = GetLocationByColor(gridData.RowData[i].Values[j]);
                 var menGroup = int.Parse(columnGroupMap[j].Split("-")[1]);
+                var eveness = Evenness.Always;
+                var nextRow = values[i + 1];
+                if (nextRow.Count != 0 && j < nextRow.Count && nextRow[j].ToString() != lessonCell) 
+                {
+                    if (GetTimeAndNumberOfPairFromCell(nextRow).Item1.ToString() == currentTime.ToString()) //смотрю на временной слот следующей строки
+                        eveness = Evenness.Even;
+                    else
+                        eveness = Evenness.Odd;
+                }
+
                 if (lessonInfo != null)
                 {
-                    var lesson = new Lesson(
-                        currentPairNumber,
-                        lessonInfo.SubjectName,
-                        lessonInfo.TeacherName,
-                        lessonInfo.ClassRoom,
-                        currentTime,
-                        null,
-                        location,
-                        columnSubgroupMap[j],
-                        menGroup, 
-                        Evenness.Even,//TODO хз как у тебя тут все работает но думаю понятно че сюда запихать 
-                        ParseDayOfWeek(currentDayOfWeek) 
-                    );
-                    lessons.Add(lesson);
+                    var lessonKey =
+                        $"{currentDayOfWeek}_{currentPairNumber}_{currentTime}_{menGroup}_{columnSubgroupMap[j]}_{lessonInfo.SubjectName}_{lessonInfo.TeacherName}_{lessonInfo.ClassRoom}";
+                    if (!seenLessons.Contains(lessonKey)) //для отсеивания повторов
+                    {
+                        seenLessons.Add(lessonKey);
+                        var lesson = new Lesson(
+                            currentPairNumber,
+                            lessonInfo.SubjectName,
+                            lessonInfo.TeacherName,
+                            lessonInfo.ClassRoom,
+                            currentTime,
+                            null,
+                            location,
+                            columnSubgroupMap[j],
+                            menGroup,
+                            eveness,
+                            ParseDayOfWeek(currentDayOfWeek)
+                        );
+                        lessons.Add(lesson);
+                    }
                 }
             }
         }
@@ -171,22 +169,38 @@ public class TableParser
         return lessons;
     }
 
+    private static (TimeOnly?,int) GetTimeAndNumberOfPairFromCell(IList<object> row)
+    {
+        TimeOnly? currentTime;
+        var timeCell = row[1].ToString();
+        var parts = timeCell.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        var currentPairNumber = -1;
+        if (parts.Length > 0) currentPairNumber = ParseRomanNumeral(parts[0]);
+
+        if (TimeOnly.TryParse(parts[1], out var time))
+            currentTime = time;
+        else
+            currentTime = null;
+        return (currentTime, currentPairNumber);
+    }
+
     private static DayOfWeek? ParseDayOfWeek(string day)
     {
         if (string.IsNullOrWhiteSpace(day)) return null;
-        
+
         return day.ToUpper() switch
         {
             "ПН" => DayOfWeek.Monday,
             "ВТ" => DayOfWeek.Tuesday,
             "СР" => DayOfWeek.Wednesday,
-            "ЧТ" => DayOfWeek.Thursday, 
+            "ЧТ" => DayOfWeek.Thursday,
             "ПТ" => DayOfWeek.Friday,
             "СБ" => DayOfWeek.Saturday,
             "ВС" => DayOfWeek.Sunday,
             _ => null
         };
     }
+
     private static int ParseRomanNumeral(string roman)
     {
         if (string.IsNullOrWhiteSpace(roman)) return -1;
@@ -197,18 +211,18 @@ public class TableParser
             _ => -1
         };
     }
-    
+
     private static string GetLocationByColor(CellData cell)
     {
         var bgColor = cell.EffectiveFormat?.BackgroundColor;
         //Console.WriteLine($"!{bgColor.Red} {bgColor.Green} {bgColor.Blue}");
-        
-        if ( bgColor.Red == 0.9411765f && bgColor.Green == 1f && bgColor.Blue == 0.6862745f)
+
+        if (bgColor.Red == 0.9411765f && bgColor.Green == 1f && bgColor.Blue == 0.6862745f)
             return "Куйбышева, 48";
-        
-        if (bgColor.Red == 0.8980392f && bgColor.Green == 0.9372549f &&  bgColor.Blue == 1f)
+
+        if (bgColor.Red == 0.8980392f && bgColor.Green == 0.9372549f && bgColor.Blue == 1f)
             return "Онлайн";
-        
+
         return "Тургенева, 4";
     }
 
@@ -223,10 +237,10 @@ public class TableParser
 
         //Убираем пометки "такое-то время с такой-то даты", не убрал "углублённая группа"
         var cleanCell = Regex.Replace(cell, @"\s*(?:\d{1,2}:\d{2}-\d{1,2}:\d{2}\s+)?с\s+\d{1,2}\s+\w+.*$", "").Trim();
-        
+
         //Отдельно убираем "углублённая группа"
         cleanCell = Regex.Replace(cleanCell, @"углублённая группа", "", RegexOptions.IgnoreCase).Trim();
-        
+
         var parts = cleanCell.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .ToList();
         if (parts.Count == 0) return null;
@@ -248,73 +262,58 @@ public class TableParser
 
         return info;
     }
-    
+
     /// <summary>
-    /// Метод, который распространяет объединённые ячейки на все касающиеся их индексы (по дефолту значение значение лежит только в левом верхнем)
+    ///     Метод, который распространяет объединённые ячейки на все касающиеся их индексы (по дефолту значение лежит только в
+    ///     левом верхнем)
     /// </summary>
     /// <param name="spreadsheetId"></param>
     /// <param name="range"></param>
     /// <param name="service"></param>
     /// <returns></returns>
-    public static IList<IList<object>> GetValuesWithMergedCells(string spreadsheetId, string range, SheetsService service)
-{
-    var spreadsheetRequest = service.Spreadsheets.Get(spreadsheetId);
-    spreadsheetRequest.Ranges = new List<string> { range };
-    spreadsheetRequest.Fields = "sheets.merges";
-    var spreadsheet = spreadsheetRequest.Execute();
-    var merges = new List<Google.Apis.Sheets.v4.Data.GridRange>();
-    if (spreadsheet.Sheets != null)
+    public static IList<IList<object>> GetValuesWithMergedCells(string spreadsheetId, string range,
+        SheetsService service)
     {
-        merges = spreadsheet.Sheets.First().Merges?.ToList() ?? new List<Google.Apis.Sheets.v4.Data.GridRange>();
-    }
-    
-    var valuesRequest = service.Spreadsheets.Values.Get(spreadsheetId, range);
-    var valuesResponse = valuesRequest.Execute();
-    var values = valuesResponse.Values;
+        var spreadsheetRequest = service.Spreadsheets.Get(spreadsheetId);
+        spreadsheetRequest.Ranges = new List<string> { range };
+        spreadsheetRequest.Fields = "sheets.merges";
+        var spreadsheet = spreadsheetRequest.Execute();
+        var merges = new List<GridRange>();
+        if (spreadsheet.Sheets != null) merges = spreadsheet.Sheets.First().Merges?.ToList() ?? new List<GridRange>();
 
-    if (values == null || values.Count == 0)
-    {
-        return new List<IList<object>>();
-    }
-    
-    foreach (var merge in merges)
-    {
-        if (merge.StartRowIndex == null || merge.StartColumnIndex == null || 
-            merge.EndRowIndex == null || merge.EndColumnIndex == null) continue;
+        var valuesRequest = service.Spreadsheets.Values.Get(spreadsheetId, range);
+        var valuesResponse = valuesRequest.Execute();
+        var values = valuesResponse.Values;
 
-        int startRow = (int)merge.StartRowIndex;
-        int endRow = (int)merge.EndRowIndex;
-        int startCol = (int)merge.StartColumnIndex;
-        int endCol = (int)merge.EndColumnIndex;
+        if (values == null || values.Count == 0) return new List<IList<object>>();
 
-        object mergedValue = null;
-        if (values.Count > startRow && values[startRow].Count > startCol)
+        foreach (var merge in merges)
         {
-            mergedValue = values[startRow][startCol];
-        }
+            if (merge.StartRowIndex == null || merge.StartColumnIndex == null ||
+                merge.EndRowIndex == null || merge.EndColumnIndex == null) continue;
 
-        if (mergedValue != null)
-        {
-            for (int i = startRow; i < endRow; i++)
-            {
-                while (values.Count <= i)
-                {
-                    values.Add(new List<object>());
-                }
-                var row = values[i];
+            var startRow = (int)merge.StartRowIndex;
+            var endRow = (int)merge.EndRowIndex;
+            var startCol = (int)merge.StartColumnIndex;
+            var endCol = (int)merge.EndColumnIndex;
 
-                for (int j = startCol; j < endCol; j++)
+            object mergedValue = null;
+            if (values.Count > startRow && values[startRow].Count > startCol) mergedValue = values[startRow][startCol];
+
+            if (mergedValue != null)
+                for (var i = startRow; i < endRow; i++)
                 {
-                    while (row.Count <= j)
+                    while (values.Count <= i) values.Add(new List<object>());
+                    var row = values[i];
+
+                    for (var j = startCol; j < endCol; j++)
                     {
-                        row.Add(null);
+                        while (row.Count <= j) row.Add(null);
+                        row[j] = mergedValue;
                     }
-                    row[j] = mergedValue;
                 }
-            }
         }
-    }
 
-    return values;
-}
+        return values;
+    }
 }
