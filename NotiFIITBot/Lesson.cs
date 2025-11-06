@@ -2,7 +2,7 @@ namespace NotiFIITBot;
 
 public class Lesson
 {
-    public Lesson(int pairNumber, string? subjectName, string? teacherName, string? classRoom, TimeOnly? begin,
+    public Lesson(int? pairNumber, string? subjectName, string? teacherName, string? classRoom, TimeOnly? begin,
         TimeOnly? end, string? auditoryLocation, int subGroup, int menGroup, Evenness evennessOfWeek, DayOfWeek? dayOfWeek)
     {
         PairNumber = pairNumber;

@@ -47,12 +47,14 @@ public class TableParser
         var service = new SheetsService(new BaseClientService.Initializer
         {
             ApiKey = apiKey,
-            ApplicationName = "Schedule Parser"
+            ApplicationName = "Schedule Parser",
         });
 
-        var request = service.Spreadsheets.Values.Get(spreadsheetId, range);
-        var response = request.Execute();
-        var values = response.Values;
+        //var request = service.Spreadsheets.Values.Get(spreadsheetId, range); Было раньше
+        //var response = request.Execute();
+        //var valuesOld = response.Values;
+        
+        var values = GetValuesWithMergedCells(spreadsheetId, range, service);
         
         var detailRequest = service.Spreadsheets.Get(spreadsheetId);
         detailRequest.Ranges = range;
@@ -95,13 +97,19 @@ public class TableParser
         var currentDayOfWeek = "";
         TimeOnly? currentTime = null;
         int currentPairNumber = -1;
-
+        
+        //Console.WriteLine($"!!! {valuesMerged[35][2].ToString()}");
+        
         for (var i = 3; i < values.Count; i++)
         {
             var row = values[i];
             
             // Пропускаем пустые строки или строки с общей информацией
-            if (row == null || row.Count == 0) continue;
+            if (row == null || row.Count == 0)
+            {
+                //Console.WriteLine($"{values[i-1][2]}");
+                continue;
+            };
             
             // Получаю день недели, может пригодится
             if (row.Count > 0 && !string.IsNullOrWhiteSpace(row[0]?.ToString())) currentDayOfWeek = row[0].ToString();
@@ -240,4 +248,73 @@ public class TableParser
 
         return info;
     }
+    
+    /// <summary>
+    /// Метод, который распространяет объединённые ячейки на все касающиеся их индексы (по дефолту значение значение лежит только в левом верхнем)
+    /// </summary>
+    /// <param name="spreadsheetId"></param>
+    /// <param name="range"></param>
+    /// <param name="service"></param>
+    /// <returns></returns>
+    public static IList<IList<object>> GetValuesWithMergedCells(string spreadsheetId, string range, SheetsService service)
+{
+    var spreadsheetRequest = service.Spreadsheets.Get(spreadsheetId);
+    spreadsheetRequest.Ranges = new List<string> { range };
+    spreadsheetRequest.Fields = "sheets.merges";
+    var spreadsheet = spreadsheetRequest.Execute();
+    var merges = new List<Google.Apis.Sheets.v4.Data.GridRange>();
+    if (spreadsheet.Sheets != null)
+    {
+        merges = spreadsheet.Sheets.First().Merges?.ToList() ?? new List<Google.Apis.Sheets.v4.Data.GridRange>();
+    }
+    
+    var valuesRequest = service.Spreadsheets.Values.Get(spreadsheetId, range);
+    var valuesResponse = valuesRequest.Execute();
+    var values = valuesResponse.Values;
+
+    if (values == null || values.Count == 0)
+    {
+        return new List<IList<object>>();
+    }
+    
+    foreach (var merge in merges)
+    {
+        if (merge.StartRowIndex == null || merge.StartColumnIndex == null || 
+            merge.EndRowIndex == null || merge.EndColumnIndex == null) continue;
+
+        int startRow = (int)merge.StartRowIndex;
+        int endRow = (int)merge.EndRowIndex;
+        int startCol = (int)merge.StartColumnIndex;
+        int endCol = (int)merge.EndColumnIndex;
+
+        object mergedValue = null;
+        if (values.Count > startRow && values[startRow].Count > startCol)
+        {
+            mergedValue = values[startRow][startCol];
+        }
+
+        if (mergedValue != null)
+        {
+            for (int i = startRow; i < endRow; i++)
+            {
+                while (values.Count <= i)
+                {
+                    values.Add(new List<object>());
+                }
+                var row = values[i];
+
+                for (int j = startCol; j < endCol; j++)
+                {
+                    while (row.Count <= j)
+                    {
+                        row.Add(null);
+                    }
+                    row[j] = mergedValue;
+                }
+            }
+        }
+    }
+
+    return values;
+}
 }
