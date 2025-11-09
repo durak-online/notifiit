@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Text.RegularExpressions;
 using Google.Apis.Services;
 using Google.Apis.Sheets.v4;
@@ -51,23 +52,142 @@ public class TableParser
             ApiKey = apiKey,
             ApplicationName = "Schedule Parser"
         });
-        
+
         var values = GetValuesWithMergedCells(spreadsheetId, range, service);
-
-        var detailRequest = service.Spreadsheets.Get(spreadsheetId);
-        detailRequest.Ranges = range;
-        detailRequest.IncludeGridData = true;
-        var spreadsheet = detailRequest.Execute();
-        var sheet = spreadsheet.Sheets[0];
-        var gridData = sheet.Data[0];
-
-        var lessons = new List<Lesson>();
+        var gridData = GetGridData(spreadsheetId, range, service);
 
         if (values == null || values.Count < 4)
-            return lessons;
+            return new List<Lesson>();
+        ;
 
         // Определение групп
-        var groupsRow = values[1];
+        var columnGroupMap = BuildGroupMap(values[1]);
+
+        // Определение подгрупп
+        var columnSubgroupMap = BuildSubgroupMap(values[2]);
+
+        return ProcessSheetRows(values, gridData, columnGroupMap, columnSubgroupMap);
+    }
+
+    private static List<Lesson> ProcessSheetRows(IList<IList<object>> values, GridData gridData,
+        Dictionary<int, string> columnGroupMap, Dictionary<int, int> columnSubgroupMap)
+    {
+        var currentDayOfWeek = "";
+        TimeOnly? currentTime = null;
+        var currentPairNumber = -1;
+
+        var lessons = new List<Lesson>();
+        var seenLessons = new HashSet<string>();
+
+        for (var i = 3; i < values.Count; i++)
+        {
+            var row = values[i];
+
+            if (row == null || row.Count == 0)
+                continue;
+
+            currentDayOfWeek = GetDayOfWeek(row, currentDayOfWeek);
+
+            (currentTime, currentPairNumber) = GetTimeAndPairNumber(row);
+
+            if (currentTime == null || string.IsNullOrWhiteSpace(currentDayOfWeek)) continue;
+
+            ProcessLessonCells(values, gridData, columnGroupMap, columnSubgroupMap, row, i, currentTime,
+                currentDayOfWeek, currentPairNumber, seenLessons, lessons);
+        }
+
+        return lessons;
+    }
+
+    private static (TimeOnly?, int) GetTimeAndPairNumber(IList<object> row)
+    {
+        TimeOnly? currentTime;
+        var currentPairNumber = -1;
+        if (row.Count > 1 && !string.IsNullOrWhiteSpace(row[1]?.ToString())) return GetTimeAndNumberOfPairFromCell(row);
+
+        return (null, currentPairNumber);
+    }
+
+    private static void ProcessLessonCells(IList<IList<object>> values, GridData gridData,
+        Dictionary<int, string> columnGroupMap,
+        Dictionary<int, int> columnSubgroupMap, IList<object> row, int i, [DisallowNull] TimeOnly? currentTime,
+        string currentDayOfWeek,
+        int currentPairNumber, HashSet<string> seenLessons, List<Lesson> lessons)
+    {
+        for (var j = 2; j < row.Count; j++)
+        {
+            var lessonCell = row[j]?.ToString();
+
+            if (string.IsNullOrWhiteSpace(lessonCell) || !columnSubgroupMap.ContainsKey(j)) continue;
+
+            var lessonInfo = GetCleanLessonInfo(lessonCell);
+            if (lessonInfo == null) continue;
+
+            var location = GetLocationByColor(gridData.RowData[i].Values[j]);
+            var menGroup = int.Parse(columnGroupMap[j].Split("-")[1]);
+
+            var eveness = GetEvenness(values, i, currentTime, j);
+            
+            var lessonKey = $"{currentDayOfWeek}_{currentPairNumber}_{currentTime}_{menGroup}_{columnSubgroupMap[j]}_{lessonInfo.SubjectName}_{lessonInfo.TeacherName}_{lessonInfo.ClassRoom}";
+            if (seenLessons.Add(lessonKey)) 
+            {
+                var lesson = new Lesson(
+                    currentPairNumber,
+                    lessonInfo.SubjectName,
+                    lessonInfo.TeacherName,
+                    lessonInfo.ClassRoom,
+                    currentTime,
+                    null,
+                    location,
+                    columnSubgroupMap[j],
+                    menGroup,
+                    eveness,
+                    ParseDayOfWeek(currentDayOfWeek)
+                );
+                lessons.Add(lesson);
+            }
+        }
+    }
+
+    private static Evenness GetEvenness(IList<IList<object>> values, int i, [DisallowNull] TimeOnly? currentTime, int j)
+    {
+        var eveness = Evenness.Always;
+        var nextRow = values[i + 1];
+        if (nextRow.Count != 0 && j < nextRow.Count && nextRow[j].ToString() != values[i][j].ToString())
+        {
+            if (GetTimeAndNumberOfPairFromCell(nextRow).Item1.ToString() ==
+                currentTime.ToString()) //смотрю на временной слот следующей строки
+                eveness = Evenness.Even;
+            else
+                eveness = Evenness.Odd;
+        }
+
+        return eveness;
+    }
+
+    private static string? GetDayOfWeek(IList<object> row, string? currentDayOfWeek)
+    {
+        if (row.Count > 0 && !string.IsNullOrWhiteSpace(row[0]?.ToString())) currentDayOfWeek = row[0].ToString();
+        return currentDayOfWeek;
+    }
+
+    private static Dictionary<int, int> BuildSubgroupMap(IList<object> subgroupsRow)
+    {
+        var columnSubgroupMap = new Dictionary<int, int>();
+
+        for (var j = 0; j < subgroupsRow.Count; j++)
+        {
+            var subgroupCell = subgroupsRow[j]?.ToString();
+            if (!string.IsNullOrWhiteSpace(subgroupCell))
+                if (int.TryParse(subgroupCell.AsSpan().Slice(subgroupCell.Length - 1), out var subgroupNumber))
+                    columnSubgroupMap[j] = subgroupNumber;
+        }
+
+        return columnSubgroupMap;
+    }
+
+    private static Dictionary<int, string> BuildGroupMap(IList<object> groupsRow)
+    {
         var columnGroupMap = new Dictionary<int, string>();
         for (var j = 0; j < groupsRow.Count; j++)
         {
@@ -79,97 +199,21 @@ public class TableParser
             }
         }
 
-        // Определение подгрупп
-        var columnSubgroupMap = new Dictionary<int, int>();
-        var subgroupsRow = values[2];
-
-        for (var j = 0; j < subgroupsRow.Count; j++)
-        {
-            var subgroupCell = subgroupsRow[j]?.ToString();
-            if (!string.IsNullOrWhiteSpace(subgroupCell))
-                if (int.TryParse(subgroupCell.AsSpan().Slice(subgroupCell.Length - 1), out var subgroupNumber))
-                    columnSubgroupMap[j] = subgroupNumber;
-        }
-
-        // Непосредственно обработка ячеек с расписанием
-        var currentDayOfWeek = "";
-        TimeOnly? currentTime = null;
-        var currentPairNumber = -1;
-        var seenLessons = new HashSet<string>();
-
-        for (var i = 3; i < values.Count; i++)
-        {
-            var row = values[i];
-
-            // Пропускаем пустые строки или строки с общей информацией
-            if (row == null || row.Count == 0)
-                continue;
-
-            // Получаю день недели
-            if (row.Count > 0 && !string.IsNullOrWhiteSpace(row[0]?.ToString())) currentDayOfWeek = row[0].ToString();
-
-            // Номер пары и время начала
-            if (row.Count > 1 && !string.IsNullOrWhiteSpace(row[1]?.ToString()))
-            {
-                (currentTime,currentPairNumber) = GetTimeAndNumberOfPairFromCell(row);
-            }
-            else
-            {
-                currentTime = null;
-            }
-
-            if (currentTime == null || string.IsNullOrWhiteSpace(currentDayOfWeek)) continue;
-
-            // Обработка ячеек
-            for (var j = 2; j < row.Count; j++)
-            {
-                var lessonCell = row[j]?.ToString();
-
-                if (string.IsNullOrWhiteSpace(lessonCell) || !columnSubgroupMap.ContainsKey(j)) continue;
-
-                var lessonInfo = ParseLessonCell(lessonCell);
-                var location = GetLocationByColor(gridData.RowData[i].Values[j]);
-                var menGroup = int.Parse(columnGroupMap[j].Split("-")[1]);
-                var eveness = Evenness.Always;
-                var nextRow = values[i + 1];
-                if (nextRow.Count != 0 && j < nextRow.Count && nextRow[j].ToString() != lessonCell) 
-                {
-                    if (GetTimeAndNumberOfPairFromCell(nextRow).Item1.ToString() == currentTime.ToString()) //смотрю на временной слот следующей строки
-                        eveness = Evenness.Even;
-                    else
-                        eveness = Evenness.Odd;
-                }
-
-                if (lessonInfo != null)
-                {
-                    var lessonKey =
-                        $"{currentDayOfWeek}_{currentPairNumber}_{currentTime}_{menGroup}_{columnSubgroupMap[j]}_{lessonInfo.SubjectName}_{lessonInfo.TeacherName}_{lessonInfo.ClassRoom}";
-                    if (!seenLessons.Contains(lessonKey)) //для отсеивания повторов
-                    {
-                        seenLessons.Add(lessonKey);
-                        var lesson = new Lesson(
-                            currentPairNumber,
-                            lessonInfo.SubjectName,
-                            lessonInfo.TeacherName,
-                            lessonInfo.ClassRoom,
-                            currentTime,
-                            null,
-                            location,
-                            columnSubgroupMap[j],
-                            menGroup,
-                            eveness,
-                            ParseDayOfWeek(currentDayOfWeek)
-                        );
-                        lessons.Add(lesson);
-                    }
-                }
-            }
-        }
-
-        return lessons;
+        return columnGroupMap;
     }
 
-    private static (TimeOnly?,int) GetTimeAndNumberOfPairFromCell(IList<object> row)
+    private static GridData GetGridData(string spreadsheetId, string range, SheetsService service)
+    {
+        var detailRequest = service.Spreadsheets.Get(spreadsheetId);
+        detailRequest.Ranges = range;
+        detailRequest.IncludeGridData = true;
+        var spreadsheet = detailRequest.Execute();
+        var sheet = spreadsheet.Sheets[0];
+        var gridData = sheet.Data[0];
+        return gridData;
+    }
+
+    private static (TimeOnly?, int) GetTimeAndNumberOfPairFromCell(IList<object> row)
     {
         TimeOnly? currentTime;
         var timeCell = row[1].ToString();
@@ -215,8 +259,6 @@ public class TableParser
     private static string GetLocationByColor(CellData cell)
     {
         var bgColor = cell.EffectiveFormat?.BackgroundColor;
-        //Console.WriteLine($"!{bgColor.Red} {bgColor.Green} {bgColor.Blue}");
-
         if (bgColor.Red == 0.9411765f && bgColor.Green == 1f && bgColor.Blue == 0.6862745f)
             return "Куйбышева, 48";
 
@@ -226,7 +268,7 @@ public class TableParser
         return "Тургенева, 4";
     }
 
-    private static ParsedLessonInfo? ParseLessonCell(string cell)
+    private static ParsedLessonInfo? GetCleanLessonInfo(string cell)
     {
         var info = new ParsedLessonInfo();
         if (cell.Contains("Физкультура"))
@@ -235,10 +277,10 @@ public class TableParser
             return info;
         }
 
-        //Убираем пометки "такое-то время с такой-то даты", не убрал "углублённая группа"
+        //Убираем пометки "такое-то время с такой-то даты"
         var cleanCell = Regex.Replace(cell, @"\s*(?:\d{1,2}:\d{2}-\d{1,2}:\d{2}\s+)?с\s+\d{1,2}\s+\w+.*$", "").Trim();
 
-        //Отдельно убираем "углублённая группа"
+        //Убираем "углублённая группа"
         cleanCell = Regex.Replace(cleanCell, @"углублённая группа", "", RegexOptions.IgnoreCase).Trim();
 
         var parts = cleanCell.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
@@ -252,9 +294,16 @@ public class TableParser
             parts.Remove(classroom);
         }
 
-        if (parts.Count > 0)
+        while (parts.Count > 1)
         {
-            info.TeacherName = parts.Last();
+            if (info.TeacherName != null)
+            {
+                info.TeacherName += ", " + parts.Last();
+            }
+            else
+            {
+                info.TeacherName += parts.Last();
+            }
             parts.RemoveAt(parts.Count - 1);
         }
 
@@ -267,10 +316,6 @@ public class TableParser
     ///     Метод, который распространяет объединённые ячейки на все касающиеся их индексы (по дефолту значение лежит только в
     ///     левом верхнем)
     /// </summary>
-    /// <param name="spreadsheetId"></param>
-    /// <param name="range"></param>
-    /// <param name="service"></param>
-    /// <returns></returns>
     public static IList<IList<object>> GetValuesWithMergedCells(string spreadsheetId, string range,
         SheetsService service)
     {
