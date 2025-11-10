@@ -31,10 +31,3 @@ public class Lesson
     public int? SubGroup { get; set; }
     public int? MenGroup { get; set; }
 }
-
-public enum Evenness
-{
-    Even,
-    Odd,
-    Always
-}

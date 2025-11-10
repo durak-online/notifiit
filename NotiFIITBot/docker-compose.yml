@@ -1,6 +1,6 @@
 services:
   NotiFIITDataBase:
-    image: postgres:16
+    image: postgres:17
     container_name: schedule-postgres
     environment:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}

@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using NotiFIITBot.Models; 
 using Microsoft.Extensions.Configuration; 
+using NotiFIITBot;
 
 namespace NotiFIITBot.Data 
 {

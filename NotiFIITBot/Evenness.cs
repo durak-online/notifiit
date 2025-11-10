@@ -1,7 +1,7 @@
-namespace NotiFIITBot.Models;
+namespace NotiFIITBot;
 public enum Evenness
 { 
     Even, //четни
     Odd, //нечетни
-    Always,
+    Always, //всегда
 }
