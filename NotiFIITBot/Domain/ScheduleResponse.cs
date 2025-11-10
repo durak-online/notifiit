@@ -1,4 +1,4 @@
-namespace NotiFIITBot;
+namespace NotiFIITBot.Domain;
 
 public class Group
 {

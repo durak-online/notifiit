@@ -1,9 +1,9 @@
 using Microsoft.EntityFrameworkCore;
-using NotiFIITBot.Models; 
-using Microsoft.Extensions.Configuration; 
-using NotiFIITBot;
+using Microsoft.Extensions.Configuration;
+using NotiFIITBot.Consts;
+using NotiFIITBot.Database.Models;
 
-namespace NotiFIITBot.Data 
+namespace NotiFIITBot.Database.Data 
 {
     public class ScheduleDbContext : DbContext
     {

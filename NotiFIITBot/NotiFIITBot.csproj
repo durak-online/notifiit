@@ -6,7 +6,7 @@
       <ImplicitUsings>enable</ImplicitUsings>
       <Nullable>enable</Nullable>
       <UserSecretsId>fe003548-fe3f-4146-8da8-abb4a24dacd8</UserSecretsId>
-      <StartupObject>NotiFIITBot.Program</StartupObject>
+      <StartupObject>NotiFIITBot.App.Program</StartupObject>
     </PropertyGroup>
 
     <ItemGroup>
@@ -17,10 +17,6 @@
       <PackageReference Include="Serilog.Sinks.Console" Version="6.0.0" />
       <PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />
       <PackageReference Include="Telegram.Bot" Version="22.7.2" />
-      <PackageReference Include="NUnit" Version="4.1.0" />
-      <PackageReference Include="NUnit3TestAdapter" Version="4.5.0" />
-      <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.9.0" />
-      <PackageReference Include="Moq" Version="4.20.70" />
       <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.10">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
@@ -32,5 +28,9 @@
       <PackageReference Include="Microsoft.Extensions.Configuration" Version="9.0.10" />
       <PackageReference Include="Microsoft.Extensions.Configuration.UserSecrets" Version="9.0.10" />
       <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.0.4" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Folder Include="Infra\" />
     </ItemGroup>
 </Project>

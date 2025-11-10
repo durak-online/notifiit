@@ -4,7 +4,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 #nullable disable
 
-namespace NotiFIITBot.Migrations
+namespace NotiFIITBot.Database.Migrations
 {
     /// <inheritdoc />
     public partial class InitialCreate : Migration

@@ -1,6 +1,7 @@
-using NUnit.Framework;
+using NotiFIITBot.Consts;
+using NotiFIITBot.Domain;
 
-namespace NotiFIITBot;
+namespace NotiFIITBot.Tests;
 
 [TestFixture]
 public class ParserTests

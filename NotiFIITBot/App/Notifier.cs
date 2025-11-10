@@ -1,6 +1,6 @@
 ﻿using Quartz;
 
-namespace NotiFIITBot;
+namespace NotiFIITBot.App;
 public class Notifier
 {
     private readonly IScheduler scheduler;

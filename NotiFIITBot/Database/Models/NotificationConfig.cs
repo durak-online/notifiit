@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations.Schema;
 
-namespace NotiFIITBot.Models;
+namespace NotiFIITBot.Database.Models;
 
 [Table("user_notification_config")]
 public class UserNotificationConfig

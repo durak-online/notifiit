@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
-using NotiFIITBot.Data;
+using NotiFIITBot.Database.Data;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 #nullable disable
@@ -12,21 +12,21 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace NotiFIITBot.Migrations
 {
     [DbContext(typeof(ScheduleDbContext))]
-    [Migration("20251110161416_UpdatedLessonModel")]
-    partial class UpdatedLessonModel
+    [Migration("20251110113420_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "9.0.10")
+                .HasAnnotation("ProductVersion", "8.0.6")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.HasPostgresEnum(modelBuilder, "evenness", new[] { "even", "odd", "always" });
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
-            modelBuilder.Entity("LessonModel", b =>
+            modelBuilder.Entity("Lesson", b =>
                 {
                     b.Property<int>("LessonId")
                         .ValueGeneratedOnAdd()
@@ -142,7 +142,7 @@ namespace NotiFIITBot.Migrations
 
             modelBuilder.Entity("NotiFIITBot.Models.UserNotificationConfig", b =>
                 {
-                    b.HasOne("LessonModel", "Lesson")
+                    b.HasOne("Lesson", "Lesson")
                         .WithMany()
                         .HasForeignKey("LessonId")
                         .OnDelete(DeleteBehavior.Cascade)

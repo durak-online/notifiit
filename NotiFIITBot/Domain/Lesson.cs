@@ -1,4 +1,6 @@
-namespace NotiFIITBot;
+using NotiFIITBot.Consts;
+
+namespace NotiFIITBot.Domain;
 
 public class Lesson
 {

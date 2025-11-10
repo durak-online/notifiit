@@ -3,9 +3,10 @@ using System.Text.RegularExpressions;
 using Google.Apis.Services;
 using Google.Apis.Sheets.v4;
 using Google.Apis.Sheets.v4.Data;
+using NotiFIITBot.Consts;
 using Serilog;
 
-namespace NotiFIITBot;
+namespace NotiFIITBot.Domain;
 
 // Временный для хранения результатов из ячеек
 internal class ParsedLessonInfo

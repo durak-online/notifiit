@@ -1,7 +1,8 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-using NotiFIITBot.Models;
-using NotiFIITBot;
+using NotiFIITBot.Consts;
+
+namespace NotiFIITBot.Database.Models;
 
 [Table("lessons")]
 public class LessonModel

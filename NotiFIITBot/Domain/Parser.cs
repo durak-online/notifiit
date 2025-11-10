@@ -1,6 +1,7 @@
+using NotiFIITBot.Consts;
 using System.Text.Json;
 
-namespace NotiFIITBot;
+namespace NotiFIITBot.Domain;
 
 public static class Parser
 {
@@ -81,8 +82,8 @@ public static class Extensions
     {
         var firstMonday = GetFirstStudyDay(date);
         var indexOfWeek = (date.DayNumber - firstMonday.DayNumber) / 7;
-        if (indexOfWeek % 2 == 0) return NotiFIITBot.Evenness.Odd;
-        return NotiFIITBot.Evenness.Even;
+        if (indexOfWeek % 2 == 0) return Consts.Evenness.Odd;
+        return Consts.Evenness.Even;
     }
 
     private static bool IsFirstSem(DateOnly date)

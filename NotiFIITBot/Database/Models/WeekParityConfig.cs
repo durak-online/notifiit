@@ -1,8 +1,8 @@
+using NotiFIITBot.Consts;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-using NotiFIITBot;
 
-namespace NotiFIITBot.Models;
+namespace NotiFIITBot.Database.Models;
 
 [Table("week_parity_configs")]
 public class WeekParityConfig

@@ -2,7 +2,7 @@
 
 #nullable disable
 
-namespace NotiFIITBot.Migrations
+namespace NotiFIITBot.Database.Migrations
 {
     /// <inheritdoc />
     public partial class UpdatedLessonModel : Migration
