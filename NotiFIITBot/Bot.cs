@@ -1,5 +1,6 @@
 ﻿using dotenv.net;
 using Serilog;
+using System.Net;
 using Telegram.Bot;
 using Telegram.Bot.Exceptions;
 using Telegram.Bot.Polling;
@@ -9,19 +10,20 @@ using Telegram.Bot.Types.ReplyMarkups;
 
 namespace NotiFIITBot;
 
-public class Bot
+public class Bot : IDisposable
 {
-    private readonly long creatorId;
-    private readonly string token;
     private TelegramBotClient bot;
+    private readonly string token;
+    public readonly long CreatorId;
     private CancellationTokenSource cts;
+    private HttpClient httpClient;
 
     public Bot()
     {
         DotEnv.Load(new DotEnvOptions(false));
         var variables = DotEnv.Read();
         token = variables["TELEGRAM_BOT_TOKEN"];
-        creatorId = long.Parse(variables["CREATOR_ID"]);
+        CreatorId = long.Parse(variables["CREATOR_ID"]);
     }
 
     public async Task Initialize(CancellationTokenSource cts)
@@ -29,7 +31,17 @@ public class Bot
         try
         {
             this.cts = cts;
-            bot = new TelegramBotClient(token);
+            var proxy = new WebProxy("http://147.75.101.247:9443");
+
+            var httpClient = new HttpClient(new HttpClientHandler()
+            {
+                Proxy = proxy,
+                UseProxy = true
+            });
+            this.httpClient = httpClient;
+
+            bot = new TelegramBotClient(token: token, httpClient: httpClient);
+            //bot = new TelegramBotClient(token: token);
 
             using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
             var info = await bot.GetMe(timeoutCts.Token);
@@ -55,6 +67,25 @@ public class Bot
             Log.Fatal($"Can't initialize bot: {ex}");
             throw;
         }
+    }
+
+    public async Task SendNotifitation(string message, params long[] chatIds)
+    {
+        var successful = 0;
+        foreach (var id in chatIds)
+        {
+            try
+            {
+                await bot.SendMessage(id, message, ParseMode.Html);
+                successful++;
+            }
+            catch
+            {
+                continue;
+            }
+        }
+            
+        Log.Information($"Sent notifitation to {successful} out of {chatIds.Length} users");
     }
 
     private async Task HandleUpdate(ITelegramBotClient botClient, Update update, CancellationToken cancellationToken)
@@ -103,7 +134,7 @@ public class Bot
 
 
         await bot.EditMessageText(
-            cbQuery.Message.Chat,
+            cbQuery.Message!.Chat,
             cbQuery.Message.Id,
             sched
         );
@@ -195,7 +226,7 @@ public class Bot
     {
         // durak online ID
         // more admins later
-        return user.Id == creatorId;
+        return user.Id == CreatorId;
     }
 
     private async Task SendHelpMessage(Message message)
@@ -203,5 +234,10 @@ public class Bot
         var answer =
             "Это бот для отправки расписания. Пока тут немного возможностей, но попробуй что-то из <b>Меню</b>";
         await bot.SendMessage(message.Chat.Id, answer, ParseMode.Html);
+    }
+
+    public void Dispose()
+    {
+        httpClient.Dispose();
     }
 }
