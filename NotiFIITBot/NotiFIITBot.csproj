@@ -6,6 +6,7 @@
       <ImplicitUsings>enable</ImplicitUsings>
       <Nullable>enable</Nullable>
       <UserSecretsId>fe003548-fe3f-4146-8da8-abb4a24dacd8</UserSecretsId>
+      <StartupObject>NotiFIITBot.Program</StartupObject>
     </PropertyGroup>
 
     <ItemGroup>
