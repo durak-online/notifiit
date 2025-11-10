@@ -9,16 +9,17 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <PackageReference Include="dotenv.net" Version="4.0.0"/>
-      <PackageReference Include="Google.Apis.Sheets.v4" Version="1.70.0.3819"/>
-      <PackageReference Include="Serilog" Version="4.3.0"/>
-      <PackageReference Include="Serilog.Sinks.Console" Version="6.0.0"/>
-      <PackageReference Include="Serilog.Sinks.File" Version="7.0.0"/>
-      <PackageReference Include="Telegram.Bot" Version="22.7.2"/>
-      <PackageReference Include="NUnit" Version="4.1.0"/>
-      <PackageReference Include="NUnit3TestAdapter" Version="4.5.0"/>
-      <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.9.0"/>
-      <PackageReference Include="Moq" Version="4.20.70"/>
+      <PackageReference Include="dotenv.net" Version="4.0.0" />
+      <PackageReference Include="Google.Apis.Sheets.v4" Version="1.70.0.3819" />
+      <PackageReference Include="Quartz" Version="3.15.1" />
+      <PackageReference Include="Serilog" Version="4.3.0" />
+      <PackageReference Include="Serilog.Sinks.Console" Version="6.0.0" />
+      <PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />
+      <PackageReference Include="Telegram.Bot" Version="22.7.2" />
+      <PackageReference Include="NUnit" Version="4.1.0" />
+      <PackageReference Include="NUnit3TestAdapter" Version="4.5.0" />
+      <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.9.0" />
+      <PackageReference Include="Moq" Version="4.20.70" />
       <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.10">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
