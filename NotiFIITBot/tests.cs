@@ -26,4 +26,25 @@ public class ParserTests
     {
         TableParser.ShowTables();
     }
+    
+    [Test]
+    public void GetEvenness_Monday()
+    {
+        var date = new DateOnly(2025,11,10);
+        Assert.That(date.Evenness() == Evenness.Odd);
+    }
+    
+    [Test]
+    public void GetEvenness_NotMonday()
+    {
+        var date = new DateOnly(2025,9,2);
+        Assert.That(date.Evenness() == Evenness.Odd);
+    }
+    
+    [Test]
+    public void GetEvenness_AnotherYear()
+    {
+        var date = new DateOnly(2026,1,3);
+        Assert.That(date.Evenness() == Evenness.Even);
+    }
 }
