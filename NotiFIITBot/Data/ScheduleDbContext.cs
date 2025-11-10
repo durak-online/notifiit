@@ -9,7 +9,7 @@ namespace NotiFIITBot.Data
     {
         //  Наборы всех таблиц
         public DbSet<User> Users { get; set; }
-        public DbSet<Lesson> Lessons { get; set; }
+        public DbSet<LessonModel> Lessons { get; set; }
         public DbSet<UserNotificationConfig> UserNotificationConfigs { get; set; }
         public DbSet<WeekParityConfig> WeekParityConfigs { get; set; }
 

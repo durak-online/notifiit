@@ -4,7 +4,7 @@ using NotiFIITBot.Models;
 using NotiFIITBot;
 
 [Table("lessons")]
-public class Lesson
+public class LessonModel
 { 
     [Key] 
     [Column("lesson_id")]

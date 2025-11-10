@@ -11,7 +11,7 @@ public class UserNotificationConfig
 
     [Column("lesson_id")]
     public int LessonId { get; set; }
-    public Lesson Lesson { get; set; }
+    public LessonModel Lesson { get; set; }
     
         
     // Переопределяет 'User.NotificationsEnabled'
