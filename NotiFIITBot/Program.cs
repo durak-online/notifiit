@@ -4,7 +4,7 @@ namespace NotiFIITBot;
 
 public class Program
 {
-    private readonly static CancellationTokenSource cts = new();
+    private static readonly CancellationTokenSource cts = new();
 
     public static async Task Main()
     {
