@@ -9,7 +9,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 #nullable disable
 
-namespace NotiFIITBot.Migrations
+namespace NotiFIITBot.Database.Migrations
 {
     [DbContext(typeof(ScheduleDbContext))]
     [Migration("20251110161416_UpdatedLessonModel")]

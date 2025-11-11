@@ -1,5 +1,4 @@
-﻿using dotenv.net;
-using Serilog;
+﻿using Serilog;
 using System.Net;
 using Telegram.Bot;
 using Telegram.Bot.Exceptions;
@@ -7,24 +6,15 @@ using Telegram.Bot.Polling;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
 using Telegram.Bot.Types.ReplyMarkups;
+using NotiFIITBot.Consts;
 
 namespace NotiFIITBot.App;
 
 public class Bot : IDisposable
 {
     private TelegramBotClient bot;
-    private readonly string token;
-    public readonly long CreatorId;
     private CancellationTokenSource cts;
     private HttpClient httpClient;
-
-    public Bot()
-    {
-        DotEnv.Load(new DotEnvOptions(false));
-        var variables = DotEnv.Read();
-        token = variables["TELEGRAM_BOT_TOKEN"];
-        CreatorId = long.Parse(variables["CREATOR_ID"]);
-    }
 
     public async Task Initialize(CancellationTokenSource cts)
     {
@@ -40,7 +30,7 @@ public class Bot : IDisposable
             });
             this.httpClient = httpClient;
 
-            bot = new TelegramBotClient(token: token, httpClient: httpClient);
+            bot = new TelegramBotClient(token: EnvReader.BotToken, httpClient: httpClient);
             //bot = new TelegramBotClient(token: token);
 
             using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
@@ -226,7 +216,7 @@ public class Bot : IDisposable
     {
         // durak online ID
         // more admins later
-        return user.Id == CreatorId;
+        return user.Id == EnvReader.CreatorId;
     }
 
     private async Task SendHelpMessage(Message message)

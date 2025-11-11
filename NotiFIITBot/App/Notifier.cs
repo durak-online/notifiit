@@ -1,4 +1,5 @@
-﻿using Quartz;
+﻿using NotiFIITBot.Consts;
+using Quartz;
 
 namespace NotiFIITBot.App;
 public class Notifier
@@ -43,14 +44,14 @@ public class NotificationJob : IJob
     {
         var botClient = (Bot)context.MergedJobDataMap["botClient"];
 
-        var userIds = await GetUserIds(botClient);
+        var userIds = await GetUserIds();
         var message = "Тест уведомлений:\nМатан 9:00 - 10:30\nАуд. 513";
 
         await botClient.SendNotifitation(message, userIds);
     }
 
-    private Task<long[]> GetUserIds(Bot bot)
+    private Task<long[]> GetUserIds()
     {
-        return Task.FromResult(new long[] { bot.CreatorId });
+        return Task.FromResult(new long[] { EnvReader.CreatorId });
     }
 }
