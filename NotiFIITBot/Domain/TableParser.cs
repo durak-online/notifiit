@@ -17,7 +17,7 @@ internal class ParsedLessonInfo
     public DateOnly? Date { get; set; }
 }
 
-public class TableParser
+public abstract class TableParser : IParser
 {
     public static void ShowTables()
     {

@@ -9,7 +9,7 @@ public class ParserTests
     [Test]
     public async Task GetGroups_ReturnsGroups_WhenEventMatches()
     {
-        var groups = await Parser.GetGroups(4);
+        var groups = await ApiParser.GetGroups(4);
         foreach (var group in groups) Console.WriteLine(group.title);
         Assert.That(groups.Count > 1);
     }
@@ -17,7 +17,7 @@ public class ParserTests
     [Test]
     public async Task GetGroupId()
     {
-        var id = await Parser.GetGroupId(240801);
+        var id = await ApiParser.GetGroupId(240801);
         Console.WriteLine(id);
         Assert.That(id == 63804);
     }

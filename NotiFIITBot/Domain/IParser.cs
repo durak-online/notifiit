@@ -1,6 +1,6 @@
 namespace NotiFIITBot.Domain;
 
-public class Parser
+public interface IParser
 {
     
 }
