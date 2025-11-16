@@ -6,24 +6,15 @@ namespace NotiFIITBot.Database.Data
 {
     public class ScheduleDbContext : DbContext
     {
+        public ScheduleDbContext(DbContextOptions<ScheduleDbContext> options)
+            : base(options)
+        {
+        }
         //  Наборы всех таблиц
         public DbSet<User> Users { get; set; }
         public DbSet<LessonModel> Lessons { get; set; }
         public DbSet<UserNotificationConfig> UserNotificationConfigs { get; set; }
         public DbSet<WeekParityConfig> WeekParityConfigs { get; set; }
-
-        //  Конфигурация подключения 
-        protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-        {
-            var connectionString =
-                $"Host=localhost;" +
-                $"Port=5433;" +
-                $"Database={EnvReader.PostgresDbName};" +
-                $"Username={EnvReader.PostgresUser};" +
-                $"Password={EnvReader.PostgresPassword}";
-
-            optionsBuilder.UseNpgsql(connectionString);
-        }
 
         // Настройка моделей 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
