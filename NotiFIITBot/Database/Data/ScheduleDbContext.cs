@@ -12,7 +12,7 @@ namespace NotiFIITBot.Database.Data
         public DbSet<UserNotificationConfig> UserNotificationConfigs { get; set; }
         public DbSet<WeekParityConfig> WeekParityConfigs { get; set; }
 
-        //  Конфигурация подключения 
+        //  Конфигурация подключения  
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
             var connectionString =
