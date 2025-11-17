@@ -1,4 +1,4 @@
-﻿using System;
+﻿﻿using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
@@ -15,11 +15,11 @@ namespace NotiFIITBot.Repo
             "Host=localhost;Port=5433;Database=notifiit_db;Username=notifiit_admin;Password=226381194";
 
         // Группы и подгруппы для парсинга
-        private static readonly int[] Groups = {101, 102, 103, 104};
-        private static readonly int[] SubGroups = {1, 2};
-        private const int DaysToParse = 7;
+        private static readonly int[] Groups = {240801}; // вместо этого будем из парсера вызывать метод для получения групп
+        private static readonly int[] SubGroups = {1, 2, 3, 4};//TODO: а если их 3?
+        private const int DaysToParse = 14;
         private const int MaxPairsPerDay = 7;
-        private const int RequestDelayMs = 150; // пауза между запросами, чтобы не спамить API
+        private const int RequestDelayMs = 150; 
 
         public static async Task SeedDatabase()
         {
@@ -35,6 +35,11 @@ namespace NotiFIITBot.Repo
                 var repo = new ScheduleRepository(context);
 
                 var allLessons = new List<Lesson>();
+                //---------------------
+                /*var allLessons = Parser.GetLessons();
+                await repo.UpsertLessonsAsync(allLessons);
+                await context.SaveChangesAsync();*/
+                //-----------------------
                 var startDate = DateOnly.FromDateTime(DateTime.Now);
 
                 foreach (var group in Groups)

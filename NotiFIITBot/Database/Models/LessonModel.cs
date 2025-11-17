@@ -11,8 +11,8 @@ public class LessonModel
     [Column("lesson_id")]
     public int LessonId { get; set; } // id пары
 
-    [Column("parity")]
-    public Evenness Parity { get; set; } // четность
+    [Column("evenness")]
+    public Evenness Evenness { get; set; } // четность
 
     [Column("day_of_week")]
     public DayOfWeek DayOfWeek { get; set; } // день недели

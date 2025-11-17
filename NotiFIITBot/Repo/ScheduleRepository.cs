@@ -58,7 +58,7 @@ namespace NotiFIITBot.Database.Repositories
             // Поиск с учётом нормализации - регистронезависимо
             var existing = await _context.Lessons
                 .FirstOrDefaultAsync(l =>
-                        l.Parity == parity &&
+                        l.Evenness == parity &&
                         l.DayOfWeek == dayOfWeek &&
                         l.PairNumber == pairNumber &&
                         EF.Functions.ILike(l.SubjectName ?? string.Empty, subject ?? string.Empty) &&
@@ -87,7 +87,7 @@ namespace NotiFIITBot.Database.Repositories
                 // Создание новой записи
                 var newLesson = new LessonModel
                 {
-                    Parity = parity,
+                    Evenness = parity,
                     DayOfWeek = dayOfWeek,
                     PairNumber = pairNumber,
                     SubjectName = subject,
@@ -109,6 +109,8 @@ namespace NotiFIITBot.Database.Repositories
         /// Пытается извлечь число аудитории из строки (например "123" или "к.123" или "123/1").
         /// Возвращает null, если не получилось.
         /// </summary>
+        ///
+        
         private int? ParseClassroomNumber(string? classRoom)
         {
             if (string.IsNullOrWhiteSpace(classRoom)) return null;
