@@ -31,5 +31,5 @@ public class Lesson
     public Evenness EvennessOfWeek { get; set; }
     public string? AuditoryLocation { get; set; }
     public int? SubGroup { get; set; }
-    public int? MenGroup { get; set; }
+    public int MenGroup { get; set; }
 }

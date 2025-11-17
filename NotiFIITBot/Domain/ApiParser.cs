@@ -3,7 +3,7 @@ using System.Text.Json;
 
 namespace NotiFIITBot.Domain;
 
-public abstract class ApiParser : IParser
+public class ApiParser : IParser
 {
     private static readonly int[] DivisionIds = [62404, 62403];
 
@@ -21,7 +21,7 @@ public abstract class ApiParser : IParser
             var schedule = JsonSerializer.Deserialize<ScheduleResponse>(content);
             foreach (var ev in schedule.events)
                 if (pairNumber == ev.pairNumber &&
-                    (ev.comment.Contains($@"{subGroup} пг.") || !ev.comment.Contains("пг.")))
+                    (ev.comment==null || (ev.comment.Contains($@"{subGroup} пг.") || !ev.comment.Contains("пг."))))
                 {
                     var timeBegin = TimeOnly.Parse(ev.timeBegin);
                     var timeEnd = TimeOnly.Parse(ev.timeEnd);
@@ -75,6 +75,14 @@ public abstract class ApiParser : IParser
         var json = await client.GetStringAsync(url);
         var groups = JsonSerializer.Deserialize<List<Group>>(json);
         return groups;
+    }
+
+    /// <summary>
+    /// сюда впихиваем только айдишники из апи урфу(это не те которые мен и не те которые фт)
+    /// </summary>
+    private static async Task<int?> GetGroupIdMEN(int groupId)
+    {
+        return null;
     }
 }
 
