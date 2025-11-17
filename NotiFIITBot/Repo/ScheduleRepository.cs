@@ -48,7 +48,7 @@ namespace NotiFIITBot.Database.Repositories
             if (lesson == null) throw new ArgumentNullException(nameof(lesson));
 
             // Маппинг доменной сущности -> модель БД (подготовка значений)
-            var parity = (NotiFIITBot.Consts.Evenness)lesson.EvennessOfWeek;
+            var parity = lesson.EvennessOfWeek;
             var dayOfWeek = lesson.DayOfWeek ?? DayOfWeek.Monday; // если null — по умолчанию
             var pairNumber = lesson.PairNumber ?? -1;
             var subject = lesson.SubjectName?.Trim();

@@ -42,11 +42,12 @@ public abstract class ApiParser : IParser
 
 
     /// <summary>
+    /// в формате МЕН-groupName
     /// without мен
     /// </summary>
     /// <param name="groupName"></param>
     /// <returns></returns>
-    public static async Task<int> GetGroupId(int groupName) //в формате МЕН-groupName
+    public static async Task<int> GetGroupId(int groupName)
     {
         using var client = new HttpClient();
         var url = "https://urfu.ru/api/v2/schedule/groups?search=" + groupName;
