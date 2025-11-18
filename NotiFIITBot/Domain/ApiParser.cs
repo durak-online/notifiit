@@ -3,10 +3,30 @@ using System.Text.Json;
 
 namespace NotiFIITBot.Domain;
 
-public abstract class ApiParser : IParser
+public abstract class ApiParser
 {
     private static readonly int[] DivisionIds = [62404, 62403];
 
+    public static async Task<IEnumerable<Lesson>> GetLessons(int group, int subGroup)
+    {
+        var lessons = new List<Lesson>();
+        var startDate = DateOnly.FromDateTime(DateTime.Now);
+        for (int dayOffset = 0; dayOffset < 14; dayOffset++)
+        {
+            var date = startDate.AddDays(dayOffset);
+            for (int pair = 1; pair <= 7; pair++)
+            {
+                var lesson = await GetLesson(group, date, pair, subGroup);
+                if (lesson != null)
+                {
+                    lessons.Add(lesson);
+                }
+            }
+        }
+
+        return lessons;
+    }
+    
     public static async Task<Lesson> GetLesson(int group, DateOnly date, int pairNumber, int subGroup)
     {
         using var client = new HttpClient();
@@ -20,8 +40,8 @@ public abstract class ApiParser : IParser
             var content = await response.Content.ReadAsStringAsync();
             var schedule = JsonSerializer.Deserialize<ScheduleResponse>(content);
             foreach (var ev in schedule.events)
-                if (pairNumber == ev.pairNumber &&
-                    (ev.comment.Contains($@"{subGroup} пг.") || !ev.comment.Contains("пг.")))
+                if (pairNumber == ev.pairNumber && (ev.comment == null ||
+                    (ev.comment.Contains($@"{subGroup} пг.") || !ev.comment.Contains("пг."))))
                 {
                     var timeBegin = TimeOnly.Parse(ev.timeBegin);
                     var timeEnd = TimeOnly.Parse(ev.timeEnd);

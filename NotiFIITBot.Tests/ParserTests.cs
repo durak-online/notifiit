@@ -7,6 +7,25 @@ namespace NotiFIITBot.Tests;
 public class ParserTests
 {
     [Test]
+    public async Task GetLessons()
+    {
+        var lessons = await ApiParser.GetLessons(240801, 1);
+        foreach (var lesson in lessons)
+        {
+            Console.WriteLine($"День: {lesson.DayOfWeek}, " +
+                              $"Группа: {lesson.MenGroup}, " + $"Подгруппа: {lesson.SubGroup}, " +
+                              $"Предмет: {lesson.SubjectName}, " +
+                              $"Преподаватель: {lesson.TeacherName}, " +
+                              $"Локация: {lesson.AuditoryLocation}, " +
+                              $"Аудитория: {lesson.ClassRoom}, " +
+                              $"Пара №: {lesson.PairNumber}, " +
+                              $"Начало: {lesson.Begin} " +
+                              $"Четность: {lesson.EvennessOfWeek} ");
+        }
+        Assert.That(lessons.Count() > 1);
+    }
+    
+    [Test]
     public async Task GetGroups_ReturnsGroups_WhenEventMatches()
     {
         var groups = await ApiParser.GetGroups(4);
