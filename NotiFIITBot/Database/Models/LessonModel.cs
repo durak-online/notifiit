@@ -6,21 +6,22 @@ namespace NotiFIITBot.Database.Models;
 
 [Table("lessons")]
 public class LessonModel
-{ 
-    [Key] 
+{
+    [Key]
     [Column("lesson_id")]
     public int LessonId { get; set; } // id пары
 
-    [Column("evenness")]
+    [Column("parity")]
     public Evenness Evenness { get; set; } // четность
 
     [Column("day_of_week")]
-    public DayOfWeek DayOfWeek { get; set; } // день недели
-
+    public DayOfWeek DayOfWeek { get; set; } // <-- ВОТ ЭТА СТРОКА БЫЛА УДАЛЕНА
+    
     [Column("pair_number")]
-    public int PairNumber { get; set; } // номер пары
+    public int PairNumber { get; set; }
 
-    [Column("subject_name")] 
+
+    [Column("subject_name")]
     [StringLength(255)]
     public string? SubjectName { get; set; } // название предмета
 
@@ -30,8 +31,7 @@ public class LessonModel
 
     [Column("classroom_number")]
     public int? ClassroomNumber { get; set; } // номер кабинета
-    
+
     [Column("classroom_route_url")]
     public string? ClassroomRoute { get; set; } // маршрут до кабинета
-    
 }

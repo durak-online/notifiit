@@ -19,7 +19,6 @@ namespace NotiFIITBot.Database.Data
         // Настройка моделей 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
-            modelBuilder.HasPostgresEnum<Evenness>();
 
             modelBuilder.Entity<WeekParityConfig>()
                 .HasKey(e => e.Parity);
