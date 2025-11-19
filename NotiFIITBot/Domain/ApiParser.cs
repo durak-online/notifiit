@@ -1,13 +1,33 @@
+
 using NotiFIITBot.Consts;
 using System.Text.Json;
-using Serilog;
 
 namespace NotiFIITBot.Domain;
 
-public abstract class ApiParser : IParser
+public abstract class ApiParser
 {
     private static readonly int[] DivisionIds = [62404, 62403];
 
+    public static async Task<IEnumerable<Lesson>> GetLessons(int group, int subGroup)
+    {
+        var lessons = new List<Lesson>();
+        var startDate = DateOnly.FromDateTime(DateTime.Now);
+        for (int dayOffset = 0; dayOffset < 14; dayOffset++)
+        {
+            var date = startDate.AddDays(dayOffset);
+            for (int pair = 1; pair <= 7; pair++)
+            {
+                var lesson = await GetLesson(group, date, pair, subGroup);
+                if (lesson != null)
+                {
+                    lessons.Add(lesson);
+                }
+            }
+        }
+
+        return lessons;
+    }
+    
     public static async Task<Lesson> GetLesson(int group, DateOnly date, int pairNumber, int subGroup)
     {
         using var client = new HttpClient();
@@ -21,34 +41,17 @@ public abstract class ApiParser : IParser
             var content = await response.Content.ReadAsStringAsync();
             var schedule = JsonSerializer.Deserialize<ScheduleResponse>(content);
             foreach (var ev in schedule.events)
-            {
-
-                if (ev == null) continue; // при добавлении в бд вылезал ошибка, так что пустые строки пропускаем
-                var comment = ev.comment ?? string.Empty;
-
-                if (pairNumber == ev.pairNumber &&
-                    (comment.Contains($@"{subGroup} пг.", StringComparison.OrdinalIgnoreCase) ||
-                     !comment.Contains("пг.", StringComparison.OrdinalIgnoreCase)))
+                if (pairNumber == ev.pairNumber && (ev.comment == null ||
+                    (ev.comment.Contains($@"{subGroup} пг.") || !ev.comment.Contains("пг."))))
                 {
                     var timeBegin = TimeOnly.Parse(ev.timeBegin);
                     var timeEnd = TimeOnly.Parse(ev.timeEnd);
                     var lesson = new Lesson(pairNumber, ev.title, ev.teacherName, ev.auditoryTitle, timeBegin, timeEnd,
-                        ev.auditoryLocation, subGroup, group,
+                        ev.auditoryLocation, subGroup, group, 
                         date.Evenness(),
                         date.DayOfWeek);
-
-                    lesson.ParityList = lesson.EvennessOfWeek switch
-                    {
-                        Evenness.Always => new List<int> { 0, 1 },
-                        Evenness.Even   => new List<int> { 0 },
-                        Evenness.Odd    => new List<int> { 1 },
-                        _               => new List<int> { 0 }
-                    };
                     return lesson;
-
                 }
-            }
-
         }
         catch (Exception ex)
         {
