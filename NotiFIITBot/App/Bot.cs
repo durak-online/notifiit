@@ -7,6 +7,7 @@ using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
 using Telegram.Bot.Types.ReplyMarkups;
 using NotiFIITBot.Consts;
+using NotiFIITBot.Domain;
 
 namespace NotiFIITBot.App;
 
@@ -21,7 +22,7 @@ public class Bot : IDisposable
         try
         {
             this.cts = cts;
-            var proxy = new WebProxy("http://147.75.101.247:9443");
+            var proxy = new WebProxy("http://168.81.64.204:8000");
 
             var httpClient = new HttpClient(new HttpClientHandler()
             {
@@ -35,7 +36,7 @@ public class Bot : IDisposable
 
             using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
             var info = await bot.GetMe(timeoutCts.Token);
-            Log.Information($"Bot {info.Username} started to work");
+            Log.Information($"Bot {info} started to work");
 
             var receiverOptions = new ReceiverOptions
             {
@@ -74,7 +75,7 @@ public class Bot : IDisposable
                 continue;
             }
         }
-            
+
         Log.Information($"Sent notifitation to {successful} out of {chatIds.Length} users");
     }
 
@@ -85,17 +86,17 @@ public class Bot : IDisposable
             switch (update)
             {
                 case { Message: { } message }:
-                    Log.Information($"Received message from {message.From?.Username ?? "unknown"}");
+                    Log.Information($"Received message from {message.From!.ToString() ?? "unknown"}");
                     await HandleMessage(message);
                     break;
 
                 case { CallbackQuery: { } cbQuery }:
-                    Log.Information($"Callback query from {cbQuery.From.Username}");
+                    Log.Information($"Callback query from {cbQuery.From}");
                     await HandleCallbackQuery(cbQuery);
                     break;
 
                 default:
-                    Log.Information($"Received {update.Type} update type");
+                    Log.Information($"Received {update.Type} update type, no handler for this type");
                     break;
             }
         }
@@ -109,16 +110,16 @@ public class Bot : IDisposable
     {
         var sched = cbQuery.Data switch
         {
-            "today" => "Тест: расписание на сегодня",
-            "tomorrow" => "Тест: расписание на завтра",
-            "week" => "Тест: расписание на неделю",
-            "2week" => "Тест: расписание на 2 недели",
+            nameof(SchedulePeriod.Today) => GetSchedForPeriod(SchedulePeriod.Today),
+            nameof(SchedulePeriod.Tomorrow) => GetSchedForPeriod(SchedulePeriod.Tomorrow),
+            nameof(SchedulePeriod.Week) => GetSchedForPeriod(SchedulePeriod.Week),
+            nameof(SchedulePeriod.TwoWeeks) => GetSchedForPeriod(SchedulePeriod.TwoWeeks),
             _ => null
         };
 
         if (sched == null)
         {
-            Log.Error($"Can't handle CallbackQuery with message {cbQuery.Message}");
+            Log.Error($"Can't handle CallbackQuery with data: {cbQuery.Data}, text: {cbQuery.Message?.Text}");
             sched = "Произошла ошибка";
         }
 
@@ -158,58 +159,130 @@ public class Bot : IDisposable
 
     private async Task AnswerOnMessage(Message message)
     {
-        if (message.Text != null)
-            switch (message.Text.Split()[0])
-            {
-                case "/start":
-                    await bot.SendMessage(
-                        message.Chat.Id,
-                        "Добро пожаловать! Посмотри список доступных команд в <b>Меню</b>",
-                        ParseMode.Html);
-                    break;
+        switch (message.Text!.Split()[0])
+        {
+            case "/start":
+                await bot.SendMessage(
+                    message.Chat.Id,
+                    "Добро пожаловать! Посмотри список доступных команд в <b>Меню</b>",
+                    ParseMode.Html);
+                break;
 
-                case "/sched":
-                    await AskSchedule(message);
-                    break;
+            case "/sched":
+                await AskSchedule(message);
+                break;
 
-                case "/slots":
-                    await bot.SendMessage(
-                        message.Chat.Id,
-                        "Додепчик пошел"
-                    );
-                    await bot.SendDice(
-                        message.Chat.Id,
-                        "🎰"
-                    );
-                    break;
+            case "/today":
+                var todaySched = GetSchedForPeriod(SchedulePeriod.Today);
+                await bot.SendMessage(
+                    message.Chat.Id,
+                    todaySched
+                );
+                break;
 
-                case "/help":
-                    await SendHelpMessage(message);
-                    break;
+            case "/tmrw":
+                var tomorrowSched = GetSchedForPeriod(SchedulePeriod.Tomorrow);
+                await bot.SendMessage(
+                    message.Chat.Id,
+                    tomorrowSched
+                );
+                break;
 
-                case "/stop" when IsAdmin(message.From):
-                    await bot.SendMessage(message.Chat.Id, "Останавливаю бота...");
-                    Log.Information($"Stopped by {message.From.Username}");
-                    cts.Cancel();
-                    break;
+            case "/week":
+                var weekSched = GetSchedForPeriod(SchedulePeriod.Week);
+                await bot.SendMessage(
+                    message.Chat.Id,
+                    weekSched
+                );
+                break;
 
-                default:
-                    await bot.SendMessage(
-                        message.Chat.Id,
-                        "Я не понял о чем ты...\nНапиши /help, если не знаешь с чего начать!");
-                    break;
-            }
+            case "/2week":
+                var twoWeeksSched = GetSchedForPeriod(SchedulePeriod.TwoWeeks);
+                await bot.SendMessage(
+                    message.Chat.Id,
+                    twoWeeksSched
+                );
+                break;
+
+            case "/slots":
+                await bot.SendMessage(
+                    message.Chat.Id,
+                    "Додепчик пошел"
+                );
+                await bot.SendDice(
+                    message.Chat.Id,
+                    "🎰"
+                );
+                break;
+
+            case "/help":
+                await SendHelpMessage(message);
+                break;
+
+            case "/stop" when IsAdmin(message.From!):
+                await bot.SendMessage(message.Chat.Id, "Останавливаю бота...");
+                Log.Information($"Stopped by {message.From!}");
+                cts.Cancel();
+                break;
+
+            default:
+                await bot.SendMessage(
+                    message.Chat.Id,
+                    "Я не понял о чем ты...\nНапиши /help, если не знаешь с чего начать!");
+                break;
+        }
     }
 
     private async Task AskSchedule(Message message)
     {
         var schedInlineMarkup = new InlineKeyboardMarkup()
-            .AddButton("Сегодня", "today")
-            .AddButton("Завтра", "tomorrow")
+            .AddButton("Сегодня", nameof(SchedulePeriod.Today))
+            .AddButton("Завтра", nameof(SchedulePeriod.Tomorrow))
             .AddNewRow()
-            .AddButton("Неделя", "week")
-            .AddButton("2 недели", "2week");
+            .AddButton("Неделя", nameof(SchedulePeriod.Week))
+            .AddButton("2 недели", nameof(SchedulePeriod.TwoWeeks));
         await bot.SendMessage(message.Chat, "Выбери какое расписание тебе нужно:", replyMarkup: schedInlineMarkup);
+    }
+
+    private string GetSchedForPeriod(SchedulePeriod period)
+    {
+        var lessons = TableParser.GetTableData(EnvReader.GoogleApiKey, EnvReader.TableId, EnvReader.Fiit2Range);
+        var dates = GetDateRange(period)
+            .Select(d => (DayOfWeek: d.DayOfWeek, Evenness: d.Evenness()))
+            .ToList();
+
+        // заглушка, пока нет регистрации юзеров
+        var userGroup = 240801;
+        var userSubGroup = 1;
+
+        var filtered = lessons
+            .Where(l => l.MenGroup == userGroup && l.SubGroup == userSubGroup
+                && dates.Any(d =>
+                d.DayOfWeek == (DayOfWeek)l.DayOfWeek &&
+                (l.EvennessOfWeek == Evenness.Always || d.Evenness == l.EvennessOfWeek)
+            ));
+
+        var result = "";
+        foreach (var group in filtered.GroupBy(l => l.DayOfWeek))
+            result += Formatter.FormatLessons(group.ToList());
+
+        return result;
+    }
+
+    private IEnumerable<DateOnly> GetDateRange(SchedulePeriod period)
+    {
+        var today = DateOnly.FromDateTime(DateTime.Now);
+
+        return period switch
+        {
+            SchedulePeriod.Today => new[] { today },
+            SchedulePeriod.Tomorrow => new[] { today.AddDays(1) },
+            SchedulePeriod.Week => Enumerable.Range(0, 7)
+                                    .Select(offset => today.AddDays(offset)),
+            SchedulePeriod.TwoWeeks => Enumerable.Range(0, 14)
+                                       .Select(offset => today.AddDays(offset)),
+            _ => throw new ArgumentException("Unknown period")
+        };
     }
 
     private bool IsAdmin(User user)

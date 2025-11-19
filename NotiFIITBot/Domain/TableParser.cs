@@ -17,17 +17,13 @@ internal class ParsedLessonInfo
     public DateOnly? Date { get; set; }
 }
 
-public abstract class TableParser : IParser
+public abstract class TableParser
 {
     public static void ShowTables()
     {
         try
         {
-            var apiKey = "AIzaSyCGZyCs_HMeVEnqYRw2Bh5wDr3qzLfOR9g";
-            var spreadsheetId = "1pj8fzVqrZVkNssSJiInxy_Cm54ddC8tm8eluMdV-XvM";
-            var range = "ФИИТ-2!A1:J84"; //вставь "ФИИТ-1, с 15.09" перед ! для обработки 1 курса
-
-            var scheduleData = GetTableData(apiKey, spreadsheetId, range);
+            var scheduleData = GetTableData(EnvReader.GoogleApiKey, EnvReader.TableId, EnvReader.Fiit2Range);
 
             foreach (var lesson in scheduleData)
                 Console.WriteLine($"День: {lesson.DayOfWeek}, " +
@@ -38,7 +34,7 @@ public abstract class TableParser : IParser
                                   $"Аудитория: {lesson.ClassRoom}, " +
                                   $"Пара №: {lesson.PairNumber}, " +
                                   $"Начало: {lesson.Begin} " +
-                                  $"Четность: {lesson.EvennessOfWeek} ");
+                                  $"Четность: {lesson.EvennessOfWeek}");
         }
         catch (Exception ex)
         {

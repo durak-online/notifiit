@@ -1,6 +1,0 @@
-namespace NotiFIITBot.Domain;
-
-public class Parser
-{
-    
-}

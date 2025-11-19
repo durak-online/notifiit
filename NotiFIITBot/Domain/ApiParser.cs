@@ -1,9 +1,8 @@
-using NotiFIITBot.Consts;
 using System.Text.Json;
 
 namespace NotiFIITBot.Domain;
 
-public abstract class ApiParser : IParser
+public static class ApiParser
 {
     private static readonly int[] DivisionIds = [62404, 62403];
 
@@ -26,7 +25,7 @@ public abstract class ApiParser : IParser
                     var timeBegin = TimeOnly.Parse(ev.timeBegin);
                     var timeEnd = TimeOnly.Parse(ev.timeEnd);
                     var lesson = new Lesson(pairNumber, ev.title, ev.teacherName, ev.auditoryTitle, timeBegin, timeEnd,
-                        ev.auditoryLocation, subGroup, group, 
+                        ev.auditoryLocation, subGroup, group,
                         date.Evenness(),
                         date.DayOfWeek);
                     return lesson;
@@ -75,37 +74,4 @@ public abstract class ApiParser : IParser
         var groups = JsonSerializer.Deserialize<List<Group>>(json);
         return groups;
     }
-}
-
-public static class Extensions
-{
-    public static Evenness Evenness(this DateOnly date)
-    {
-        var firstMonday = GetFirstStudyDay(date);
-        var indexOfWeek = (date.DayNumber - firstMonday.DayNumber) / 7;
-        if (indexOfWeek % 2 == 0) return Consts.Evenness.Odd;
-        return Consts.Evenness.Even;
-    }
-
-    private static bool IsFirstSem(DateOnly date)
-    {
-        return date.Month is >= 9 and <= 12 or 1;
-    }
-
-    private static DateOnly GetFirstStudyDay(DateOnly date)
-    {
-        //ну теперь получается ищем первый учебный день сентября
-        //подумал чуть считерим и будем искать понедельник первой учебной недели, условно если учеба началась во вторник 1 сентября, то я возьму 31 августа
-        var studyYear = date.Year;
-        if (date.Month == 1) studyYear--;
-        var firstStudyDay = new DateOnly(studyYear, 9, 1);
-        if (!IsFirstSem(date)) return new DateOnly(studyYear, 2, 9);
-        
-        if (firstStudyDay.DayOfWeek == DayOfWeek.Saturday) firstStudyDay = firstStudyDay.AddDays(2);
-        else if (firstStudyDay.DayOfWeek == DayOfWeek.Sunday) firstStudyDay = firstStudyDay.AddDays(1);
-        else if (firstStudyDay.DayOfWeek != DayOfWeek.Monday)
-            firstStudyDay = firstStudyDay.AddDays(1 - (int)firstStudyDay.DayOfWeek);
-        return firstStudyDay;
-    }
-    
 }
