@@ -30,8 +30,6 @@ public class Lesson
     public DayOfWeek? DayOfWeek { get; set; }
     public Evenness EvennessOfWeek { get; set; }
     public int? LessonId { get; set; }
-
-    public List<int>? ParityList { get; set; }
     public string? AuditoryLocation { get; set; }
     public int? SubGroup { get; set; }
     public int? MenGroup { get; set; }

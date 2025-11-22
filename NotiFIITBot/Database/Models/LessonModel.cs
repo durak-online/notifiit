@@ -9,7 +9,8 @@ public class LessonModel
 {
     [Key]
     [Column("lesson_id")]
-    public int LessonId { get; set; } // id пары
+    [DatabaseGenerated(DatabaseGeneratedOption.None)] 
+    public int LessonId { get; set; }
 
     [Column("parity")]
     public Evenness Evenness { get; set; } // четность

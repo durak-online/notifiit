@@ -1,4 +1,5 @@
-﻿using Serilog;
+﻿using NotiFIITBot.Repo;
+using Serilog;
 
 namespace NotiFIITBot.App;
 
@@ -26,7 +27,8 @@ public class Program
             Log.Information("[STEP 1] Starting database seeding...");
 
             // ✅ Заполняем базу распаршенными данными
-            await NotiFIITBot.Repo.DbSeeder.SeedDatabase();
+            await TableDbSeeder.SeedDatabaseFromTable();
+
 
             Log.Information("[STEP 2] Database seeding completed successfully!");
 

@@ -1,4 +1,3 @@
-
 using NotiFIITBot.Consts;
 using System.Text.Json;
 
@@ -25,8 +24,33 @@ public abstract class ApiParser
             }
         }
 
-        return lessons;
+        return ChangeParity(lessons);
     }
+
+    private static IEnumerable<Lesson> ChangeParity(IEnumerable<Lesson> lessons)
+    {
+        var groups = lessons.GroupBy(l =>
+            $"{l.SubjectName}-{l.TeacherName}-{l.ClassRoom}-{l.PairNumber}-{l.SubGroup}-{l.MenGroup}");
+        var result = new List<Lesson>();
+
+        foreach (var group in groups)
+        {
+            var list = group.ToList();
+            if (list.Count == 1)
+            {
+                result.Add(list[0]);
+                continue;
+            }
+            var hasOdd = list.Any(x => x.EvennessOfWeek == Evenness.Odd);
+            var hasEven = list.Any(x => x.EvennessOfWeek == Evenness.Even);
+            var merged = list[0];
+            if (hasOdd && hasEven)
+                merged.EvennessOfWeek = Evenness.Always;
+            result.Add(merged);
+        }
+        return result;
+    }
+
     
     public static async Task<Lesson> GetLesson(int group, DateOnly date, int pairNumber, int subGroup)
     {
@@ -81,7 +105,6 @@ public abstract class ApiParser
                 return group.id;
         return -1;
     }
-
     public static async Task<List<Group>> GetGroups(int course)
     {
         var groups = new List<Group>();
@@ -129,5 +152,4 @@ public static class Extensions
             firstStudyDay = firstStudyDay.AddDays(1 - (int)firstStudyDay.DayOfWeek);
         return firstStudyDay;
     }
-    
 }
