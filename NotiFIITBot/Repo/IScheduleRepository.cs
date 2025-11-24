@@ -11,9 +11,4 @@ public interface IScheduleRepository
     /// Возвращает список созданных/обновлённых LessonModel.
     /// </summary>
     Task<List<LessonModel>> UpsertLessonsAsync(IEnumerable<Lesson> lessons, CancellationToken ct = default);
-
-    /// <summary>
-    /// Вставить или обновить одну запись.
-    /// </summary>
-    Task<LessonModel> UpsertLessonAsync(Lesson lesson, CancellationToken ct = default);
 }

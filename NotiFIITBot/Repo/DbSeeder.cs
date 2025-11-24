@@ -1,173 +1,162 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
+﻿using System.Text.RegularExpressions; 
 using Microsoft.EntityFrameworkCore;
+using NotiFIITBot.Consts;
 using NotiFIITBot.Database.Data;
-using NotiFIITBot.Database.Repo;
+using NotiFIITBot.Database.Models;
 using NotiFIITBot.Domain;
 using Serilog;
-using NotiFIITBot.Consts;
 
-namespace NotiFIITBot.Repo
+namespace NotiFIITBot.Repo;
+
+public class DbSeeder
 {
-    public static class ApiDbSeeder
+    private string ConnectionString => 
+        $"Host=localhost;Port=5433;Database={EnvReader.PostgresDbName};Username={EnvReader.PostgresUser};Password={EnvReader.PostgresPassword}";
+    
+    private const string ApiKey = "AIzaSyDSC8k2yVH-OZvJE7ksssWeUxem04c2kPM";
+    private const string SpreadsheetId = "1pj8fzVqrZVkNssSJiInxy_Cm54ddC8tm8eluMdV-XvM";
+    private const string Range = "ФИИТ-1, с 15.09!A1:J84";
+
+    public async Task SeedAsync(bool useTable, bool useApi, int[]? targetGroups = null)
     {
-        private static readonly string ConnectionString =
-            "Host=localhost;Port=5433;Database=notifiit_db;Username=notifiit_admin;Password=226381194";
-
-        public static async Task SeedDatabaseApi(bool stopAfterFirstGroup = false, int? singleGroupNumber = null)
+        Log.Information("[SEED] Starting Unified Seeding...");
+        
+        if (string.IsNullOrEmpty(EnvReader.PostgresPassword))
         {
-            Log.Information("[SEED] Starting lessons-only database seeding...");
+            Log.Fatal("[SEED] CRITICAL: Env variables not loaded.");
+            return;
+        }
 
+        await ClearExistingLessonsAsync(targetGroups);
+        var allLessons = new List<Lesson>();
+        var tableGroupNumbers = new HashSet<int>();
+
+        // 1. ГРУЗИМ ТАБЛИЦУ
+        if (useTable)
+        {
+            var tableData = TableParser.GetTableData(ApiKey, SpreadsheetId, Range, targetGroups)
+                .Where(l => l != null).ToList();
+
+            if (tableData.Any())
+            {
+                foreach (var l in tableData) 
+                    if (l.MenGroup.HasValue) tableGroupNumbers.Add(l.MenGroup.Value);
+                
+                allLessons.AddRange(tableData);
+                Log.Information($"[SEED] Loaded {tableData.Count} lessons from Table.");
+            }
+        }
+
+        // 2. ГРУЗИМ API
+        if (useApi)
+        {
+            Log.Information("[SEED] Fetching API group list...");
+            
+            var apiGroups = new List<NotiFIITBot.Domain.ApiParser.Group>();
+            apiGroups.AddRange(await ApiParser.GetGroups(1));
+
+            Log.Information($"[SEED] Found {apiGroups.Count} groups in API.");
+
+            foreach (var group in apiGroups)
+            {
+                // Надежный парсинг: ищем 6 цифр подряд
+                if (!TryParseGroupNumberRegex(group.title, out int gNum)) continue;
+                
+                if (targetGroups != null && targetGroups.Length > 0 && !targetGroups.Contains(gNum)) continue; 
+                if (tableGroupNumbers.Contains(gNum)) continue; 
+
+                Log.Information($"[SEED] Loading API for {gNum} (Internal ID: {group.id})...");
+                
+                // Используем ToList(), чтобы материализовать список в памяти
+                var sub1 = (await ApiParser.GetLessons(group.id, 1)).ToList();
+                var sub2 = (await ApiParser.GetLessons(group.id, 2)).ToList();
+
+                // Теперь точно обновляем MenGroup в этих объектах
+                sub1.ForEach(l => l.MenGroup = gNum);
+                sub2.ForEach(l => l.MenGroup = gNum);
+
+                allLessons.AddRange(sub1);
+                allLessons.AddRange(sub2);
+            }
+        }
+
+        if (!allLessons.Any())
+        {
+            Log.Warning("[SEED] No lessons found. Exiting.");
+            return;
+        }
+
+        Log.Information($"[SEED] Processing {allLessons.Count} raw lessons...");
+
+        var lessonsSubNormalized = LessonProcessor.NormalizeSubgroups(allLessons);
+        var finalLessons = LessonProcessor.MergeByParity(lessonsSubNormalized).ToList();
+        LessonProcessor.AssignStableIds(finalLessons);
+        
+        // Убираем полные дубликаты
+        var uniqueLessons = finalLessons.DistinctBy(l => l.LessonId).ToList();
+
+        Log.Information($"[SEED] Final count to save: {uniqueLessons.Count}");
+
+        await SaveBatchedSafeAsync(uniqueLessons);
+    }
+    
+    private async Task ClearExistingLessonsAsync(int[]? targetGroups)
+    {
+        var options = new DbContextOptionsBuilder<ScheduleDbContext>()
+            .UseNpgsql(ConnectionString)
+            .Options;
+
+        await using var context = new ScheduleDbContext(options);
+
+        if (targetGroups == null || targetGroups.Length == 0)
+        {
+            Log.Warning("[SEED-CLEAN] Cleaning ALL lessons table...");
+            await context.Set<LessonModel>().ExecuteDeleteAsync();
+            Log.Information("[SEED-CLEAN] All lessons deleted.");
+        }
+        else
+        {
+            Log.Information($"[SEED-CLEAN] Cleaning lessons for groups: {string.Join(", ", targetGroups)}...");
+            await context.Set<LessonModel>()
+                .Where(l => l.MenGroup.HasValue && targetGroups.Contains(l.MenGroup.Value))
+                .ExecuteDeleteAsync();
+            Log.Information("[SEED-CLEAN] Targeted cleanup finished.");
+        }
+    }
+
+    private async Task SaveBatchedSafeAsync(List<Lesson> lessons)
+    {
+        var options = new DbContextOptionsBuilder<ScheduleDbContext>().UseNpgsql(ConnectionString).Options;
+
+        foreach (var batch in lessons.Chunk(100))
+        {
             try
             {
-                var options = new DbContextOptionsBuilder<ScheduleDbContext>()
-                    .UseNpgsql(ConnectionString)
-                    .Options;
-
                 await using var context = new ScheduleDbContext(options);
                 var repo = new ScheduleRepository(context);
-
-                var allGroups = await ApiParser.GetGroups(1); // пример: курс 1
-                Log.Information("[SEED] Total groups found: {Count}", allGroups.Count);
-
-                if (singleGroupNumber.HasValue)
-                {
-                    allGroups = allGroups
-                        .Where(g =>
-                        {
-                            if (string.IsNullOrWhiteSpace(g.title)) return false;
-                            if (!g.title.StartsWith("МЕН-")) return false;
-                            if (!int.TryParse(g.title.Replace("МЕН-", ""), out var num)) return false;
-                            return num == singleGroupNumber.Value;
-                        })
-                        .ToList();
-                    Log.Information("[SEED] singleGroupNumber specified: {Group}. Groups to process: {Count}",
-                        singleGroupNumber, allGroups.Count);
-                }
-
-                foreach (var group in allGroups)
-                {
-                    Log.Information("[SEED] Processing group {Title}", group.title);
-
-                    var groupLessons = new List<Lesson>();
-
-                    foreach (var subGroup in new[] { 1, 2 })
-                    {
-                        try
-                        {
-                            if (!int.TryParse(group.title.Replace("МЕН-", ""), out var groupNumber))
-                            {
-                                Log.Warning("[SEED] Cannot parse numeric group from title {Title}, skipping subgroup {SubGroup}",
-                                    group.title, subGroup);
-                                continue;
-                            }
-
-                            var lessons = (await ApiParser.GetLessons(groupNumber, subGroup)).ToList();
-                            groupLessons.AddRange(lessons);
-
-                            foreach (var lesson in lessons)
-                            {
-                                Log.Information("[SEED] Got lesson: Group={Group} SubGroup={SubGroup} Subject={Subject} Day={Day} Pair={Pair} Evenness={Evenness}",
-                                    group.title, subGroup, lesson.SubjectName, lesson.DayOfWeek, lesson.PairNumber, lesson.EvennessOfWeek);
-                            }
-
-                            Log.Information("[SEED] Group {Group} subGroup {SubGroup} parsed {Count} lessons",
-                                group.title, subGroup, lessons.Count);
-                        }
-                        catch (Exception ex)
-                        {
-                            Log.Error("[SEED] Failed parsing group {Group} subGroup {SubGroup}: {Msg}", group.title,
-                                subGroup, ex.Message);
-                        }
-                    }
-
-                    Log.Information("[SEED] Total lessons fetched for group {Group}: {Count}", group.title,
-                        groupLessons.Count);
-
-                    if (!groupLessons.Any())
-                    {
-                        Log.Warning("[SEED] No lessons for group {Group}, skipping save", group.title);
-                        if (stopAfterFirstGroup) break;
-                        continue;
-                    }
-
-                    // Применяем новый метод ChangeParity для корректного определения parity
-                    var mergedLessons = ChangeParity(groupLessons).ToList();
-
-                    // Формируем LessonId для каждой записи
-                    foreach (var lesson in mergedLessons)
-                    {
-                        int gNum = lesson.MenGroup ?? 0;
-                        int sg = lesson.SubGroup ?? 0;
-                        int parityInt = lesson.EvennessOfWeek switch
-                        {
-                            Evenness.Even => 0,
-                            Evenness.Odd => 1,
-                            Evenness.Always => 2,
-                            _ => 0
-                        };
-                        int day = (int)(lesson.DayOfWeek ?? DayOfWeek.Monday);
-                        int pair = lesson.PairNumber ?? 0;
-
-                        lesson.LessonId = gNum * 10000 + sg * 1000 + parityInt * 100 + day * 10 + pair;
-                    }
-
-                    if (mergedLessons.Any())
-                    {
-                        try
-                        {
-                            Log.Information("[SEED] Saving {Count} merged lessons for group {Group} to DB...",
-                                mergedLessons.Count, group.title);
-                            await repo.UpsertLessonsAsync(mergedLessons);
-                            await context.SaveChangesAsync();
-                            Log.Information("[SEED] Saved group {Group} to DB.", group.title);
-                        }
-                        catch (Exception ex)
-                        {
-                            Log.Error("[SEED] Failed to save group {Group} to DB: {Msg}", group.title, ex.Message);
-                        }
-                    }
-
-                    if (stopAfterFirstGroup) break;
-                }
-
-                Log.Information("[SEED] Seeding loop finished.");
+                await repo.UpsertLessonsAsync(batch);
+                await context.SaveChangesAsync();
             }
             catch (Exception ex)
             {
-                Log.Fatal("[SEED] Fatal error: {Msg}", ex.Message);
-                Log.Debug("[SEED] Exception detail: {Ex}", ex);
-            }
-            finally
-            {
-                Log.Information("[SEED] Lessons-only seeding finished.");
+                Log.Error($"[SEED] Batch save error: {ex.Message}");
             }
         }
+        Log.Information("[SEED] Seeding finished successfully.");
+    }
 
-        private static IEnumerable<Lesson> ChangeParity(IEnumerable<Lesson> lessons)
+    // Более надежный парсер номера группы
+    private bool TryParseGroupNumberRegex(string title, out int number)
+    {
+        number = 0;
+        if (string.IsNullOrWhiteSpace(title)) return false;
+
+        // Ищем любые 6 цифр подряд (например 240801)
+        var match = Regex.Match(title, @"\d{6}");
+        if (match.Success)
         {
-            var groups = lessons.GroupBy(l =>
-                $"{l.SubjectName}-{l.TeacherName}-{l.ClassRoom}-{l.PairNumber}-{l.SubGroup}-{l.MenGroup}");
-            var result = new List<Lesson>();
-
-            foreach (var group in groups)
-            {
-                var list = group.ToList();
-                if (list.Count == 1)
-                {
-                    result.Add(list[0]);
-                    continue;
-                }
-                var hasOdd = list.Any(x => x.EvennessOfWeek == Evenness.Odd);
-                var hasEven = list.Any(x => x.EvennessOfWeek == Evenness.Even);
-                var merged = list[0];
-                if (hasOdd && hasEven)
-                    merged.EvennessOfWeek = Evenness.Always;
-                result.Add(merged);
-            }
-            return result;
+            return int.TryParse(match.Value, out number);
         }
+        return false;
     }
 }

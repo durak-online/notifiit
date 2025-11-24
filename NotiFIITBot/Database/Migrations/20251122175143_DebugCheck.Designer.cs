@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using NotiFIITBot.Database.Data;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace NotiFIITBot.Database.Migrations
 {
     [DbContext(typeof(ScheduleDbContext))]
-    partial class ScheduleDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251122175143_DebugCheck")]
+    partial class DebugCheck
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -24,17 +27,17 @@ namespace NotiFIITBot.Database.Migrations
 
             modelBuilder.Entity("NotiFIITBot.Database.Models.LessonModel", b =>
                 {
-                    b.Property<long>("LessonId")
-                        .HasColumnType("bigint")
+                    b.Property<int>("LessonId")
+                        .HasColumnType("integer")
                         .HasColumnName("lesson_id");
 
-                    b.Property<string>("AuditoryLocation")
+                    b.Property<int?>("ClassroomNumber")
+                        .HasColumnType("integer")
+                        .HasColumnName("classroom_number");
+
+                    b.Property<string>("ClassroomRoute")
                         .HasColumnType("text")
                         .HasColumnName("classroom_route_url");
-
-                    b.Property<string>("ClassroomNumber")
-                        .HasColumnType("text")
-                        .HasColumnName("classroom_number");
 
                     b.Property<int>("DayOfWeek")
                         .HasColumnType("integer")
@@ -42,19 +45,11 @@ namespace NotiFIITBot.Database.Migrations
 
                     b.Property<int>("Evenness")
                         .HasColumnType("integer")
-                        .HasColumnName("evenness");
-
-                    b.Property<int?>("MenGroup")
-                        .HasColumnType("integer")
-                        .HasColumnName("men_group");
+                        .HasColumnName("parity");
 
                     b.Property<int>("PairNumber")
                         .HasColumnType("integer")
                         .HasColumnName("pair_number");
-
-                    b.Property<int?>("SubGroup")
-                        .HasColumnType("integer")
-                        .HasColumnName("sub_group");
 
                     b.Property<string>("SubjectName")
                         .HasMaxLength(255)
@@ -107,8 +102,8 @@ namespace NotiFIITBot.Database.Migrations
                         .HasColumnType("bigint")
                         .HasColumnName("telegram_id");
 
-                    b.Property<long>("LessonId")
-                        .HasColumnType("bigint")
+                    b.Property<int>("LessonId")
+                        .HasColumnType("integer")
                         .HasColumnName("lesson_id");
 
                     b.Property<bool?>("IsNotificationEnabledOverride")
