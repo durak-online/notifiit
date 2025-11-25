@@ -79,9 +79,7 @@ public static class LessonProcessor
     }
 
     /// <summary>
-    /// Шаг 3. Генерация стабильного ID.
-    /// ВАЖНО: HashCode.Combine использовать НЕЛЬЗЯ (он меняется при перезапуске).
-    /// Используем SHA256 от строки с твоими параметрами.
+    /// Генерация стабильного ID.
     /// </summary>
     public static void AssignStableIds(IEnumerable<Lesson> lessons)
     {
@@ -101,7 +99,7 @@ public static class LessonProcessor
             var uniqueString = $"{gNum}_{sg}_{parityInt}_{day}_{pair}_{room}_{l.SubjectName}";
             
             var bytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(uniqueString));
-            l.LessonId = BitConverter.ToInt64(bytes, 0);
+            l.LessonId = new Guid(bytes.Take(16).ToArray());
         }
     }
 }

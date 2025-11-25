@@ -2,21 +2,18 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
-using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using NotiFIITBot.Database.Data;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 #nullable disable
 
-namespace NotiFIITBot.Database.Migrations
+namespace NotiFIITBot.Migrations
 {
     [DbContext(typeof(ScheduleDbContext))]
-    [Migration("20251124190806_RenamedParityToEvenness")]
-    partial class RenamedParityToEvenness
+    partial class ScheduleDbContextModelSnapshot : ModelSnapshot
     {
-        /// <inheritdoc />
-        protected override void BuildTargetModel(ModelBuilder modelBuilder)
+        protected override void BuildModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -27,8 +24,8 @@ namespace NotiFIITBot.Database.Migrations
 
             modelBuilder.Entity("NotiFIITBot.Database.Models.LessonModel", b =>
                 {
-                    b.Property<long>("LessonId")
-                        .HasColumnType("bigint")
+                    b.Property<Guid>("LessonId")
+                        .HasColumnType("uuid")
                         .HasColumnName("lesson_id");
 
                     b.Property<string>("AuditoryLocation")
@@ -110,8 +107,8 @@ namespace NotiFIITBot.Database.Migrations
                         .HasColumnType("bigint")
                         .HasColumnName("telegram_id");
 
-                    b.Property<long>("LessonId")
-                        .HasColumnType("bigint")
+                    b.Property<Guid>("LessonId")
+                        .HasColumnType("uuid")
                         .HasColumnName("lesson_id");
 
                     b.Property<bool?>("IsNotificationEnabledOverride")

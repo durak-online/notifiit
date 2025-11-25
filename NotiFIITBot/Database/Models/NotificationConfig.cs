@@ -10,7 +10,7 @@ public class UserNotificationConfig
     public User User { get; set; }
 
     [Column("lesson_id")]
-    public long LessonId { get; set; }
+    public Guid? LessonId { get; set; }
     public LessonModel Lesson { get; set; }
     
         

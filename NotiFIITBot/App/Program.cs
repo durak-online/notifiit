@@ -27,7 +27,6 @@ public class Program
         try
         {
             // КОНФИГУРАЦИЯ ЗАПУСКА
-            // Можно легко менять флаги здесь или читать их из args
             var useTable = true;  // Грузить таблицу 
             var useApi = false;   // Грузить API
             int[] groupsToParse = [];

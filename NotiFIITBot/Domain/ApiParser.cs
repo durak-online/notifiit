@@ -16,7 +16,6 @@ public abstract class ApiParser
 
         using var client = new HttpClient();
         
-        // Один запрос на 2 недели
         var url = $"https://urfu.ru/api/v2/schedule/groups/{groupId}/schedule?date_gte={startDate:yyyy-MM-dd}&date_lte={endDate:yyyy-MM-dd}";
 
         try
@@ -28,38 +27,40 @@ public abstract class ApiParser
 
             if (schedule?.events == null) return lessons;
 
-            foreach (var ev in schedule.events)
+            for (var index = 0; index < schedule.events.Count; index++)
             {
+                var ev = schedule.events[index];
                 // Фильтр подгруппы
-                bool isForMySubgroup = ev.comment == null || 
-                                       ev.comment.Contains($"{subGroup} пг.") || 
-                                       !ev.comment.Contains("пг.");
+                var isForMySubgroup = ev.comment == null ||
+                                      ev.comment.Contains($"{subGroup} пг.") ||
+                                      !ev.comment.Contains("пг.");
 
                 if (!isForMySubgroup) continue;
 
                 if (!DateOnly.TryParse(ev.date, out var lessonDate)) continue;
-                
+
                 var timeBegin = TimeOnly.Parse(ev.timeBegin);
                 var timeEnd = TimeOnly.Parse(ev.timeEnd);
 
                 // ОЧИСТКА НАЗВАНИЯ
                 // Убираем "(подгруппа)", "(лекция)", "(практика)" и лишние пробелы
-                var cleanTitle = Regex.Replace(ev.title, @"\s*\((подгруппа|лекция|практика|лаб.*?|семинар).*?\)", "", RegexOptions.IgnoreCase).Trim();
+                var cleanTitle = Regex.Replace(ev.title, @"\s*\((подгруппа|лекция|практика|лаб.*?|семинар).*?\)", "",
+                    RegexOptions.IgnoreCase).Trim();
 
                 var lesson = new Lesson(
-                    ev.pairNumber, 
+                    ev.pairNumber,
                     cleanTitle, // Используем чистое название
-                    ev.teacherName, 
-                    ev.auditoryTitle, 
-                    timeBegin, 
+                    ev.teacherName,
+                    ev.auditoryTitle,
+                    timeBegin,
                     timeEnd,
-                    ev.auditoryLocation, 
-                    subGroup, 
-                    0, // Заглушка, DbSeeder исправит
+                    ev.auditoryLocation,
+                    subGroup,
+                    0, // Заглушка
                     lessonDate.Evenness(),
                     lessonDate.DayOfWeek
                 );
-                
+
                 lessons.Add(lesson);
             }
         }

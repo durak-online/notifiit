@@ -10,7 +10,7 @@ public class LessonModel
     [Key]
     [Column("lesson_id")]
     [DatabaseGenerated(DatabaseGeneratedOption.None)] 
-    public long LessonId { get; set; }
+    public Guid? LessonId { get; set; }
     
     [Column("men_group")]
     public int? MenGroup { get; set; }

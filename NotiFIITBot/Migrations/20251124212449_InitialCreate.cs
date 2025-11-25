@@ -4,7 +4,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 #nullable disable
 
-namespace NotiFIITBot.Database.Migrations
+namespace NotiFIITBot.Migrations
 {
     /// <inheritdoc />
     public partial class InitialCreate : Migration
@@ -12,21 +12,19 @@ namespace NotiFIITBot.Database.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.AlterDatabase()
-                .Annotation("Npgsql:Enum:evenness", "even,odd,always");
-
             migrationBuilder.CreateTable(
                 name: "lessons",
                 columns: table => new
                 {
-                    lesson_id = table.Column<int>(type: "integer", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
-                    parity = table.Column<int>(type: "integer", nullable: false),
+                    lesson_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    men_group = table.Column<int>(type: "integer", nullable: true),
+                    sub_group = table.Column<int>(type: "integer", nullable: true),
+                    evenness = table.Column<int>(type: "integer", nullable: false),
                     day_of_week = table.Column<int>(type: "integer", nullable: false),
                     pair_number = table.Column<int>(type: "integer", nullable: false),
                     subject_name = table.Column<string>(type: "character varying(255)", maxLength: 255, nullable: true),
                     teacher_name = table.Column<string>(type: "character varying(255)", maxLength: 255, nullable: true),
-                    classroom_number = table.Column<int>(type: "integer", nullable: true),
+                    classroom_number = table.Column<string>(type: "text", nullable: true),
                     classroom_route_url = table.Column<string>(type: "text", nullable: true)
                 },
                 constraints: table =>
@@ -67,7 +65,7 @@ namespace NotiFIITBot.Database.Migrations
                 columns: table => new
                 {
                     telegram_id = table.Column<long>(type: "bigint", nullable: false),
-                    lesson_id = table.Column<int>(type: "integer", nullable: false),
+                    lesson_id = table.Column<Guid>(type: "uuid", nullable: false),
                     is_notification_enabled_override = table.Column<bool>(type: "boolean", nullable: true),
                     notification_minutes_override = table.Column<int>(type: "integer", nullable: true)
                 },

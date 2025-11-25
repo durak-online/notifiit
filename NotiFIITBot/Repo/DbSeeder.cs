@@ -10,7 +10,7 @@ namespace NotiFIITBot.Repo;
 
 public class DbSeeder
 {
-    private string ConnectionString => 
+    private static string ConnectionString => 
         $"Host=localhost;Port=5433;Database={EnvReader.PostgresDbName};Username={EnvReader.PostgresUser};Password={EnvReader.PostgresPassword}";
     
     private const string ApiKey = "AIzaSyDSC8k2yVH-OZvJE7ksssWeUxem04c2kPM";
@@ -59,7 +59,6 @@ public class DbSeeder
 
             foreach (var group in apiGroups)
             {
-                // Надежный парсинг: ищем 6 цифр подряд
                 if (!TryParseGroupNumberRegex(group.title, out int gNum)) continue;
                 
                 if (targetGroups != null && targetGroups.Length > 0 && !targetGroups.Contains(gNum)) continue; 
@@ -67,11 +66,9 @@ public class DbSeeder
 
                 Log.Information($"[SEED] Loading API for {gNum} (Internal ID: {group.id})...");
                 
-                // Используем ToList(), чтобы материализовать список в памяти
                 var sub1 = (await ApiParser.GetLessons(group.id, 1)).ToList();
                 var sub2 = (await ApiParser.GetLessons(group.id, 2)).ToList();
 
-                // Теперь точно обновляем MenGroup в этих объектах
                 sub1.ForEach(l => l.MenGroup = gNum);
                 sub2.ForEach(l => l.MenGroup = gNum);
 
@@ -145,13 +142,12 @@ public class DbSeeder
         Log.Information("[SEED] Seeding finished successfully.");
     }
 
-    // Более надежный парсер номера группы
-    private bool TryParseGroupNumberRegex(string title, out int number)
+    private static bool TryParseGroupNumberRegex(string title, out int number)
     {
         number = 0;
         if (string.IsNullOrWhiteSpace(title)) return false;
 
-        // Ищем любые 6 цифр подряд (например 240801)
+        // Ищем любые 6 цифр подряд 
         var match = Regex.Match(title, @"\d{6}");
         if (match.Success)
         {

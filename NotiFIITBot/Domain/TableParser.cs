@@ -125,7 +125,7 @@ public abstract class TableParser
             var lessonInfo = GetCleanLessonInfo(lessonCell);
             if (lessonInfo == null) continue; 
 
-            string? location = "Тургенева, 4"; 
+            var location = "Тургенева, 4"; 
             
             if (lessonCell.Contains("онлайн", StringComparison.InvariantCultureIgnoreCase))
             {
@@ -249,7 +249,7 @@ public abstract class TableParser
 
     private static Evenness GetEvenness(IList<IList<object>> values, int i, TimeOnly? currentTime, int j)
     {
-        string currentContent = values[i][j]?.ToString() ?? "";
+        var currentContent = values[i][j]?.ToString() ?? "";
 
         // 1. Смотрим ВНИЗ (i+1)
         if (i + 1 < values.Count)
@@ -261,11 +261,10 @@ public abstract class TableParser
             if (nextTime != null && nextTime.Equals(currentTime))
             {
                 // Если контент совпадает -> это объединенная ячейка -> Always
-                string nextContent = nextRow.Count > j ? nextRow[j]?.ToString() ?? "" : "";
-                if (nextContent == currentContent) return Evenness.Always;
-
-                // Иначе мы сверху, а снизу что-то другое -> Нечетная
-                return Evenness.Odd;
+                var nextContent = nextRow.Count > j ? nextRow[j]?.ToString() ?? "" : "";
+                return nextContent == currentContent ? Evenness.Always :
+                    // Иначе мы сверху, а снизу что-то другое -> Нечетная
+                    Evenness.Odd;
             }
         }
 
@@ -296,8 +295,8 @@ public abstract class TableParser
     {
         var timeCell = "";
         var pairCell = "";
-        if (row.Count > 1) timeCell = row[1]?.ToString() ?? "";
-        if (row.Count > 0) pairCell = row[0]?.ToString() ?? "";
+        if (row.Count > 1) timeCell = row[1].ToString() ?? "";
+        if (row.Count > 0) pairCell = row[0].ToString() ?? "";
         if (string.IsNullOrWhiteSpace(timeCell) && Regex.IsMatch(pairCell, @"\d{1,2}:\d{2}")) timeCell = pairCell;
         return GetTimeAndNumberOfPairFromStr(timeCell, pairCell);
     }
@@ -319,18 +318,17 @@ public abstract class TableParser
         var bgColor = cell.EffectiveFormat.BackgroundColor;
         bool IsColor(float? r, float? g, float? b, float targetR, float targetG, float targetB)
         {
-            float e = 0.05f;
+            var e = 0.05f;
             return Math.Abs((r ?? 0) - targetR) < e && Math.Abs((g ?? 0) - targetG) < e && Math.Abs((b ?? 0) - targetB) < e;
         }
         if (IsColor(bgColor.Red, bgColor.Green, bgColor.Blue, 0.941f, 1f, 0.686f)) return "Куйбышева, 48";
         if (IsColor(bgColor.Red, bgColor.Green, bgColor.Blue, 0.898f, 0.937f, 1f)) return "Онлайн";
-        if (IsColor(bgColor.Red, bgColor.Green, bgColor.Blue, 0.81f, 0.88f, 0.95f)) return "Онлайн";
-        return "Тургенева, 4";
+        return IsColor(bgColor.Red, bgColor.Green, bgColor.Blue, 0.81f, 0.88f, 0.95f) ? "Онлайн" : "Тургенева, 4";
     }
 
     private static string? GetDayOfWeek(IList<object> row, string? currentDayOfWeek)
     {
-        if (row.Count > 0 && !string.IsNullOrWhiteSpace(row[0]?.ToString())) currentDayOfWeek = row[0].ToString();
+        if (row.Count > 0 && !string.IsNullOrWhiteSpace(row[0].ToString())) currentDayOfWeek = row[0].ToString();
         return currentDayOfWeek;
     }
 
@@ -353,12 +351,11 @@ public abstract class TableParser
         for (var j = 0; j < groupsRow.Count; j++)
         {
             var groupCell = groupsRow[j]?.ToString();
-            if (!string.IsNullOrWhiteSpace(groupCell) && groupCell.Contains("МЕН", StringComparison.InvariantCultureIgnoreCase))
-            {
-                var match = Regex.Match(groupCell, @"МЕН\s*-?\s*\d+", RegexOptions.IgnoreCase);
-                var groupName = match.Success ? match.Value.Replace(" ", "") : groupCell.Trim();
-                columnGroupMap[j] = groupName;
-            }
+            if (string.IsNullOrWhiteSpace(groupCell) ||
+                !groupCell.Contains("МЕН", StringComparison.InvariantCultureIgnoreCase)) continue;
+            var match = Regex.Match(groupCell, @"МЕН\s*-?\s*\d+", RegexOptions.IgnoreCase);
+            var groupName = match.Success ? match.Value.Replace(" ", "") : groupCell.Trim();
+            columnGroupMap[j] = groupName;
         }
         return columnGroupMap;
     }
@@ -409,14 +406,14 @@ public abstract class TableParser
             var endCol = (int)merge.EndColumnIndex;
             object? mergedValue = null;
             if (values.Count > startRow && values[startRow].Count > startCol) mergedValue = values[startRow][startCol];
-            if (mergedValue != null)
-                for (var i = startRow; i < endRow; i++) {
-                    while (values.Count <= i) values.Add(new List<object>());
-                    for (var j = startCol; j < endCol; j++) {
-                        while (values[i].Count <= j) values[i].Add(null);
-                        values[i][j] = mergedValue;
-                    }
+            if (mergedValue == null) continue;
+            for (var i = startRow; i < endRow; i++) {
+                while (values.Count <= i) values.Add(new List<object>());
+                for (var j = startCol; j < endCol; j++) {
+                    while (values[i].Count <= j) values[i].Add(null);
+                    values[i][j] = mergedValue;
                 }
+            }
         }
         return values;
     }
