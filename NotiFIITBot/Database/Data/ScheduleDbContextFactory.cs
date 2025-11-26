@@ -14,7 +14,7 @@ public class ScheduleDbContextFactory : IDesignTimeDbContextFactory<ScheduleDbCo
 
         var connectionString =
             $"Host=localhost;" +
-            $"Port=5433;" +
+            $"Port=5434;" +
             $"Database={EnvReader.PostgresDbName};" + 
             $"Username={EnvReader.PostgresUser};" + 
             $"Password={EnvReader.PostgresPassword}";

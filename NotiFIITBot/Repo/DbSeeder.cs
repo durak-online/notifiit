@@ -11,7 +11,7 @@ namespace NotiFIITBot.Repo;
 public class DbSeeder
 {
     private static string ConnectionString => 
-        $"Host=localhost;Port=5433;Database={EnvReader.PostgresDbName};Username={EnvReader.PostgresUser};Password={EnvReader.PostgresPassword}";
+        $"Host=localhost;Port=5434;Database={EnvReader.PostgresDbName};Username={EnvReader.PostgresUser};Password={EnvReader.PostgresPassword}";
     
     private const string ApiKey = "AIzaSyDSC8k2yVH-OZvJE7ksssWeUxem04c2kPM";
     private const string SpreadsheetId = "1pj8fzVqrZVkNssSJiInxy_Cm54ddC8tm8eluMdV-XvM";
@@ -104,6 +104,7 @@ public class DbSeeder
             .Options;
 
         await using var context = new ScheduleDbContext(options);
+
 
         if (targetGroups == null || targetGroups.Length == 0)
         {

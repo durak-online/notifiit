@@ -1,5 +1,7 @@
-﻿using Microsoft.EntityFrameworkCore;
-using NotiFIITBot.Database.Data;
+﻿using System.Globalization;
+ using Microsoft.EntityFrameworkCore;
+ using NotiFIITBot.Consts;
+ using NotiFIITBot.Database.Data;
 using NotiFIITBot.Database.Models;
 using NotiFIITBot.Domain;
 
@@ -70,5 +72,104 @@ namespace NotiFIITBot.Repo
             await _context.SaveChangesAsync(ct);
             return result;
         }
+
+public async Task<List<LessonModel>> GetScheduleAsync(
+    int groupNumber,
+    int? subGroup,
+    IScheduleRepository.SchedulePeriod period,
+    DateTime? now = null,
+    CancellationToken ct = default)
+{
+    now ??= DateTime.Now;
+
+    var weekNumber = ISOWeek.GetWeekOfYear(now.Value);
+    var currentEvenness = (weekNumber % 2 == 0) ? Evenness.Even : Evenness.Odd;
+
+    IQueryable<LessonModel> q = _context.Lessons.AsNoTracking()
+        .Where(l => l.MenGroup == groupNumber);
+
+    if (subGroup.HasValue)
+        q = q.Where(l => l.SubGroup == subGroup.Value || l.SubGroup == null);
+
+    List<DayOfWeek> daysToLoad = period switch
+    {
+        IScheduleRepository.SchedulePeriod.Today => new() { now.Value.DayOfWeek },
+        IScheduleRepository.SchedulePeriod.Tomorrow => new() { now.Value.AddDays(1).DayOfWeek },
+        IScheduleRepository.SchedulePeriod.Week => Enum.GetValues<DayOfWeek>().ToList(),
+        IScheduleRepository.SchedulePeriod.TwoWeeks => Enum.GetValues<DayOfWeek>().ToList(),
+        _ => throw new ArgumentOutOfRangeException(nameof(period))
+    };
+
+    // Фильтруем по дням недели
+    q = q.Where(l => daysToLoad.Contains(l.DayOfWeek));
+
+    var allLessons = await q.OrderBy(l => l.DayOfWeek)
+                            .ThenBy(l => l.PairNumber)
+                            .ToListAsync(ct);
+
+    // Преобразуем в Lesson для работы с ChangeParity
+    var lessonsForParity = allLessons.Select(l => new Lesson(
+        pairNumber: l.PairNumber,
+        subjectName: l.SubjectName?.Trim(),
+        teacherName: l.TeacherName?.Trim(),
+        classRoom: l.ClassroomNumber,
+        begin: null,                 
+        end: null,                    
+        auditoryLocation: l.AuditoryLocation,
+        subGroup: l.SubGroup ?? 0,    
+        menGroup: l.MenGroup ?? 0,
+        evennessOfWeek: l.Evenness,
+        dayOfWeek: l.DayOfWeek
+    ));
+
+    // Объединяем пары с разной четностью
+    var mergedLessons = ChangeParity(lessonsForParity);
+
+    // Фильтруем по текущей неделе, но сохраняем Always
+    var filteredLessons = mergedLessons.Where(l =>
+        l.EvennessOfWeek == Evenness.Always || l.EvennessOfWeek == currentEvenness || l.EvennessOfWeek == null)
+        .Select(l => new LessonModel
+        {
+            LessonId = l.LessonId,
+            MenGroup = l.MenGroup,
+            SubGroup = l.SubGroup,
+            SubjectName = l.SubjectName,
+            TeacherName = l.TeacherName,
+            ClassroomNumber = l.ClassRoom,
+            PairNumber = l.PairNumber ?? 0,
+            DayOfWeek = l.DayOfWeek ?? DayOfWeek.Monday,
+            Evenness = l.EvennessOfWeek
+        })
+        .OrderBy(l => l.DayOfWeek)
+        .ThenBy(l => l.PairNumber)
+        .ToList();
+
+    return filteredLessons;
+}
+
+        private static IEnumerable<Lesson> ChangeParity(IEnumerable<Lesson> lessons)
+        {
+            var groups = lessons.GroupBy(l =>
+                $"{l.SubjectName}-{l.TeacherName}-{l.ClassRoom}-{l.PairNumber}-{l.SubGroup}-{l.MenGroup}");
+            var result = new List<Lesson>();
+
+            foreach (var group in groups)
+            {
+                var list = group.ToList();
+                if (list.Count == 1)
+                {
+                    result.Add(list[0]);
+                    continue;
+                }
+                var hasOdd = list.Any(x => x.EvennessOfWeek == Evenness.Odd);
+                var hasEven = list.Any(x => x.EvennessOfWeek == Evenness.Even);
+                var merged = list[0];
+                if (hasOdd && hasEven)
+                    merged.EvennessOfWeek = Evenness.Always;
+                result.Add(merged);
+            }
+            return result;
+        }
     }
+
 }
