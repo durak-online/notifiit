@@ -54,7 +54,7 @@ public static class ApiParser
         var json = await response.Content.ReadAsStringAsync();
         var groups = JsonSerializer.Deserialize<List<Group>>(json);
         foreach (var group in groups!)
-            if (group.title.Contains("МЕН"))
+            if (group.title.Contains("МЕН-"))
                 return group.id;
         return -1;
     }
@@ -66,12 +66,12 @@ public static class ApiParser
         return groups;
     }
 
-    private static async Task<List<Group>?> GetGroups(int course, int divisionId)
+    private static async Task<IEnumerable<Group>> GetGroups(int course, int divisionId)
     {
         using var client = new HttpClient();
         var url = $"https://urfu.ru/api/v2/schedule/divisions/{divisionId}/groups?course={course}";
         var json = await client.GetStringAsync(url);
-        var groups = JsonSerializer.Deserialize<List<Group>>(json);
+        var groups = JsonSerializer.Deserialize<List<Group>>(json).Where(group => group.title.StartsWith("МЕН-"));
         return groups;
     }
 }
