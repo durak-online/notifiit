@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using NotiFIITBot.Database.Data;
 using NotiFIITBot.Database.Models;
 using NotiFIITBot.Consts;
@@ -76,7 +72,7 @@ namespace NotiFIITBot.Tests
             var lessons = await repo.GetScheduleAsync(
                 groupNumber: 353001,
                 subGroup: null,
-                IScheduleRepository.SchedulePeriod.Today,
+                SchedulePeriod.Today,
                 now: monday
             );
 
