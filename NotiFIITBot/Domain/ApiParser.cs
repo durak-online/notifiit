@@ -87,6 +87,38 @@ public abstract class ApiParser
         var json = await client.GetStringAsync(url);
         return JsonSerializer.Deserialize<List<Group>>(json) ?? new List<Group>();
     }
+    
+    /// <summary>
+    /// Получает внутренний ID группы по её номеру (например, 240801 -> 63804)
+    /// </summary>
+    public static async Task<int> GetGroupId(int groupNumber)
+    {
+        using var client = new HttpClient();
+        // Поиск группы по строке
+        var url = "https://urfu.ru/api/v2/schedule/groups?search=" + groupNumber;
+        try 
+        {
+            var response = await client.GetAsync(url);
+            response.EnsureSuccessStatusCode();
+            var json = await response.Content.ReadAsStringAsync();
+            var groups = JsonSerializer.Deserialize<List<Group>>(json);
+
+            if (groups != null)
+            {
+                // Ищем точное совпадение или МЕН-группу
+                foreach (var group in groups)
+                {
+                    if (group.title.Contains($"МЕН-{groupNumber}") || group.title.Contains(groupNumber.ToString()))
+                        return group.id;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[GetGroupId Error] {ex.Message}");
+        }
+        return -1;
+    }
 
     public class ScheduleResponse { public List<Event> events { get; set; } }
     

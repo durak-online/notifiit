@@ -4,9 +4,10 @@ using NotiFIITBot.Consts;
 using NotiFIITBot.Database.Data;
 using NotiFIITBot.Database.Models;
 using NotiFIITBot.Domain;
+using NotiFIITBot.Repo;
 using Serilog;
 
-namespace NotiFIITBot.Repo;
+namespace NotiFIITBot.App;
 
 public class DbSeeder
 {
@@ -34,7 +35,7 @@ public class DbSeeder
         // 1. ГРУЗИМ ТАБЛИЦУ
         if (useTable)
         {
-            var tableData = TableParser.GetTableData(ApiKey, SpreadsheetId, Range, targetGroups)
+            var tableData = TableParser.GetTableData(ApiKey, SpreadsheetId, Range)
                 .Where(l => l != null).ToList();
 
             if (tableData.Any())
@@ -52,7 +53,7 @@ public class DbSeeder
         {
             Log.Information("[SEED] Fetching API group list...");
             
-            var apiGroups = new List<NotiFIITBot.Domain.ApiParser.Group>();
+            var apiGroups = new List<ApiParser.Group>();
             apiGroups.AddRange(await ApiParser.GetGroups(1));
 
             Log.Information($"[SEED] Found {apiGroups.Count} groups in API.");
@@ -130,9 +131,26 @@ public class DbSeeder
         {
             try
             {
+                // МАППИНГ: Превращаем Domain -> DB Model
+                var dbModels = batch.Select(l => new LessonModel
+                {
+                    LessonId = l.LessonId ?? Guid.NewGuid(),
+                    MenGroup = l.MenGroup,
+                    SubGroup = l.SubGroup,
+                    SubjectName = l.SubjectName,
+                    TeacherName = l.TeacherName,
+                    ClassroomNumber = l.ClassRoom,
+                    AuditoryLocation = l.AuditoryLocation,
+                    PairNumber = l.PairNumber ?? 0,
+                    DayOfWeek = l.DayOfWeek ?? DayOfWeek.Monday,
+                    Evenness = l.EvennessOfWeek
+                }).ToList();
+
                 await using var context = new ScheduleDbContext(options);
                 var repo = new ScheduleRepository(context);
-                await repo.UpsertLessonsAsync(batch);
+            
+                // Теперь типы совпадают
+                await repo.UpsertLessonsAsync(dbModels);
                 await context.SaveChangesAsync();
             }
             catch (Exception ex)

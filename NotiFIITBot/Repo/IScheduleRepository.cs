@@ -1,15 +1,10 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
-using NotiFIITBot.Database.Models;
-using NotiFIITBot.Domain;
+﻿using NotiFIITBot.Database.Models;
 
 namespace NotiFIITBot.Repo
 {
     public interface IScheduleRepository
     {
-        Task<List<LessonModel>> UpsertLessonsAsync(IEnumerable<Lesson> lessons, CancellationToken ct = default);
+        Task<List<LessonModel>> UpsertLessonsAsync(IEnumerable<LessonModel> lessons, CancellationToken ct = default);
 
         Task<List<LessonModel>> GetScheduleAsync(
             int groupNumber,
@@ -18,14 +13,6 @@ namespace NotiFIITBot.Repo
             DateTime? now = null,
             CancellationToken ct = default);
 
-
-        public enum SchedulePeriod
-        {
-            Today,
-            Tomorrow,
-            Week,
-            TwoWeeks
-        }
-
+        public enum SchedulePeriod { Today, Tomorrow, Week, TwoWeeks }
     }
 }

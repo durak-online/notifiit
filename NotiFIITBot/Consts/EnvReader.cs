@@ -26,4 +26,11 @@ internal static class EnvReader
 
     public static string PostgresDbName =>
         Environment.GetEnvironmentVariable("POSTGRES_DB");
+    
+    
+    public static string GoogleApiKey { get; }
+    public static string TableId { get; }
+    public static string Fiit1Range { get; }
+    public static string Fiit2Range { get; }
 }
+
