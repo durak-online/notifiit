@@ -150,12 +150,23 @@ public static class Extensions
     private static DateOnly GetFirstStudyDay(DateOnly date)
     {
         var studyYear = date.Year;
-        if (date.Month == 1) studyYear--;
+        if (date.Month == 1) 
+            studyYear--;
         var firstStudyDay = new DateOnly(studyYear, 9, 1);
-        if (!IsFirstSem(date)) return new DateOnly(studyYear, 2, 9);
-        if (firstStudyDay.DayOfWeek == DayOfWeek.Saturday) firstStudyDay = firstStudyDay.AddDays(2);
-        else if (firstStudyDay.DayOfWeek == DayOfWeek.Sunday) firstStudyDay = firstStudyDay.AddDays(1);
-        else if (firstStudyDay.DayOfWeek != DayOfWeek.Monday) firstStudyDay = firstStudyDay.AddDays(1 - (int)firstStudyDay.DayOfWeek);
+        
+        if (!IsFirstSem(date))
+            return new DateOnly(studyYear, 2, 9);
+        
+        if (firstStudyDay.DayOfWeek == DayOfWeek.Saturday)
+            firstStudyDay = firstStudyDay.AddDays(2);
+        else if (firstStudyDay.DayOfWeek == DayOfWeek.Sunday)
+            firstStudyDay = firstStudyDay.AddDays(1);
+        else
+        {
+            if (firstStudyDay.DayOfWeek != DayOfWeek.Monday)
+                firstStudyDay = firstStudyDay.AddDays(1 - (int)firstStudyDay.DayOfWeek);
+        }
+
         return firstStudyDay;
     }
 }

@@ -14,10 +14,10 @@ public class Program
 
         try
         {
-            // Загружаем переменные окружения (.env)
             try
             {
-                EnvReader.Load(".env");
+                _ = EnvReader.BotToken; 
+                Log.Information("[ENV] Environment variables loaded successfully.");
             }
             catch (Exception ex)
             {
@@ -31,14 +31,12 @@ public class Program
                 Cts.Cancel();
             };
 
-            // Запуск обновления базы данных (Seeder)
             Log.Information("[SEED] Starting database update...");
             try
             {
                 var seeder = new DbSeeder();
-                // Настройки можно вынести в конфиг или аргументы запуска
-                bool useTable = false; 
-                bool useApi = true;
+                var useTable = false; 
+                var useApi = true;
                 int[] groupsToUpdate = [150801]; // Можно сделать null для всех групп
 
                 await seeder.SeedAsync(useTable, useApi, groupsToUpdate);
@@ -49,19 +47,16 @@ public class Program
                 Log.Error(ex, "[SEED] Error during database seeding. Continuing with existing data...");
             }
 
-            //  Инициализация и запуск Бота
             Log.Information("[BOT] Initializing Telegram Bot...");
             using var bot = new Bot();
             await bot.Initialize(Cts);
 
-            //  Запуск планировщика уведомлений
             Log.Information("[NOTIFIER] Starting notification scheduler...");
             var notifier = new Notifier(bot);
             await notifier.Start();
 
             Log.Information("[APP] Bot is running. Press Ctrl+C to stop.");
 
-            // Держим приложение запущенным, пока не отменят (Ctrl+C)
             await Task.Delay(Timeout.Infinite, Cts.Token);
         }
         catch (OperationCanceledException)

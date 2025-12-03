@@ -22,7 +22,8 @@ namespace NotiFIITBot.Repo
 
             foreach (var model in lessonModels)
             {
-                if (model.LessonId == Guid.Empty) continue; // или проверка на null
+                if (model.LessonId == Guid.Empty)
+                    continue; 
 
                 var existing = await _context.Lessons.FindAsync(new object[] { model.LessonId }, ct);
 
@@ -33,7 +34,6 @@ namespace NotiFIITBot.Repo
                 }
                 else
                 {
-                    // Обновляем поля
                     existing.MenGroup = model.MenGroup;
                     existing.SubGroup = model.SubGroup;
                     existing.SubjectName = model.SubjectName;
@@ -61,16 +61,13 @@ namespace NotiFIITBot.Repo
         {
             now ??= DateTime.Now;
 
-            // 1. Инициализируем запрос
-            IQueryable<LessonModel> q = _context.Lessons.AsNoTracking()
+            var q = _context.Lessons.AsNoTracking()
                 .Where(l => l.MenGroup == groupNumber);
 
-            // 2. Фильтр по подгруппе
             if (subGroup.HasValue)
                 q = q.Where(l => l.SubGroup == subGroup.Value || l.SubGroup == null);
 
-            // 3. Определяем нужные дни недели
-            List<DayOfWeek> daysToLoad = period switch
+            var daysToLoad = period switch
             {
                 IScheduleRepository.SchedulePeriod.Today => new() { now.Value.DayOfWeek },
                 IScheduleRepository.SchedulePeriod.Tomorrow => new() { now.Value.AddDays(1).DayOfWeek },
@@ -79,14 +76,11 @@ namespace NotiFIITBot.Repo
                 _ => throw new ArgumentOutOfRangeException(nameof(period))
             };
 
-            // 4. Применяем фильтр дней
             q = q.Where(l => daysToLoad.Contains(l.DayOfWeek));
 
-            // 5. Возвращаем "сырые" данные из БД 
             return await q.OrderBy(l => l.DayOfWeek)
                 .ThenBy(l => l.PairNumber)
                 .ToListAsync(ct);
         }
     }
-
 }

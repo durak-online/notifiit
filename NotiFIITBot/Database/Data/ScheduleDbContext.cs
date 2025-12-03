@@ -10,7 +10,6 @@ namespace NotiFIITBot.Database.Data
             : base(options)
         {
         }
-        //  Наборы всех таблиц
         public DbSet<User> Users { get; set; }
         public DbSet<LessonModel> Lessons { get; set; }
         public DbSet<UserNotificationConfig> UserNotificationConfigs { get; set; }
@@ -30,18 +29,16 @@ namespace NotiFIITBot.Database.Data
 
 
             // Связь "Config -> User"
-            // (У одного Config есть один User)
             modelBuilder.Entity<UserNotificationConfig>()
                 .HasOne(c => c.User)
-                .WithMany() // (У User много Configs, но без списка)
-                .HasForeignKey(c => c.TelegramId); // (Связь по этому ключу)
+                .WithMany() 
+                .HasForeignKey(c => c.TelegramId); 
 
             // Связь "Config -> Lesson"
-            // (У одного Config есть один Lesson)
             modelBuilder.Entity<UserNotificationConfig>()
                 .HasOne(c => c.Lesson)
-                .WithMany() // (У Lesson много Configs, но без списка)
-                .HasForeignKey(c => c.LessonId); // (Связь по этому ключу)
+                .WithMany() 
+                .HasForeignKey(c => c.LessonId); 
         }
     }
 }

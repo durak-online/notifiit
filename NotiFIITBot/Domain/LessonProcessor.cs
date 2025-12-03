@@ -12,8 +12,6 @@ public static class LessonProcessor
     /// </summary>
     public static IEnumerable<Lesson> NormalizeSubgroups(IEnumerable<Lesson> lessons)
     {
-        // Группируем по "слоту" времени и контенту.
-        // Важно: EvennessOfWeek включен в ключ, так как "Матан (Чет)" у 1-й и "Матан (Нечет)" у 2-й — это РАЗНЫЕ пары.
         var groups = lessons.GroupBy(l => new
         {
             l.DayOfWeek,
@@ -37,14 +35,13 @@ public static class LessonProcessor
             if (hasSub1 && hasSub2)
             {
                 var commonLesson = list.First();
-                // Создаем копию или меняем существующий, ставим 0
                 commonLesson.SubGroup = 0; 
                 yield return commonLesson;
             }
             else
             {
-                // Иначе возвращаем как есть (например, пара только для 1-й подгруппы)
-                foreach (var item in list) yield return item;
+                foreach (var item in list)
+                    yield return item;
             }
         }
     }
@@ -87,7 +84,8 @@ public static class LessonProcessor
 
         foreach (var l in lessons)
         {
-            if (l == null) continue;
+            if (l == null) 
+                continue;
 
             var gNum = l.MenGroup ?? 0;
             var sg = l.SubGroup ?? 0;

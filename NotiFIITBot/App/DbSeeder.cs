@@ -90,7 +90,6 @@ public class DbSeeder
         var finalLessons = LessonProcessor.MergeByParity(lessonsSubNormalized).ToList();
         LessonProcessor.AssignStableIds(finalLessons);
         
-        // Убираем полные дубликаты
         var uniqueLessons = finalLessons.DistinctBy(l => l.LessonId).ToList();
 
         Log.Information($"[SEED] Final count to save: {uniqueLessons.Count}");
@@ -131,7 +130,6 @@ public class DbSeeder
         {
             try
             {
-                // МАППИНГ: Превращаем Domain -> DB Model
                 var dbModels = batch.Select(l => new LessonModel
                 {
                     LessonId = l.LessonId ?? Guid.NewGuid(),
@@ -149,7 +147,6 @@ public class DbSeeder
                 await using var context = new ScheduleDbContext(options);
                 var repo = new ScheduleRepository(context);
             
-                // Теперь типы совпадают
                 await repo.UpsertLessonsAsync(dbModels);
                 await context.SaveChangesAsync();
             }
@@ -168,10 +165,6 @@ public class DbSeeder
 
         // Ищем любые 6 цифр подряд 
         var match = Regex.Match(title, @"\d{6}");
-        if (match.Success)
-        {
-            return int.TryParse(match.Value, out number);
-        }
-        return false;
+        return match.Success && int.TryParse(match.Value, out number);
     }
 }

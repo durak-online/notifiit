@@ -8,10 +8,6 @@ public class ScheduleDbContextFactory : IDesignTimeDbContextFactory<ScheduleDbCo
 {
     public ScheduleDbContext CreateDbContext(string[] args)
     {
-        var projectRoot = Directory.GetCurrentDirectory();
-        var envPath = Path.Combine(projectRoot, ".env");
-        EnvReader.Load(envPath);
-
         var connectionString =
             $"Host=localhost;" +
             $"Port=5434;" +
