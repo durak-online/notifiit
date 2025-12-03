@@ -23,7 +23,7 @@ public static class Formatter
         var lessonEnd = lesson.End == null 
             ? lesson.Begin!.Value.AddHours(1).AddMinutes(30)
             : lesson.End;
-        return $"№ {lesson.PairNumber} {lesson.Begin}-{lessonEnd}\n" +
+        return $"№ {lesson.PairNumber} {lesson.Begin.Value:HH:mm}-{lessonEnd:HH:mm}\n" +
                $"Предмет: {lesson.SubjectName}\n" +
                $"Аудитория: {lesson.ClassRoom}\n" +
                $"Преподаватель: {lesson.TeacherName}\n";

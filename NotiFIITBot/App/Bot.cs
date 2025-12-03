@@ -1,5 +1,5 @@
-﻿using Serilog;
-using System.Net;
+﻿using System.Net;
+using Serilog;
 using Telegram.Bot;
 using Telegram.Bot.Exceptions;
 using Telegram.Bot.Polling;
@@ -8,6 +8,8 @@ using Telegram.Bot.Types.Enums;
 using Telegram.Bot.Types.ReplyMarkups;
 using NotiFIITBot.Consts;
 using NotiFIITBot.Domain;
+using NotiFIITBot.Database.Data;
+using NotiFIITBot.Repo;
 
 namespace NotiFIITBot.App;
 
@@ -35,7 +37,7 @@ public class Bot : IDisposable
 
             using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
             var info = await bot.GetMe(timeoutCts.Token);
-            Log.Information($"Bot {info} started to work");
+            Log.Information($"Bot {info.Username} started to work");
 
             var receiverOptions = new ReceiverOptions
             {
@@ -107,21 +109,29 @@ public class Bot : IDisposable
 
     private async Task HandleCallbackQuery(CallbackQuery cbQuery)
     {
-        var sched = cbQuery.Data switch
+        string? sched = null;
+        
+        switch (cbQuery.Data)
         {
-            nameof(SchedulePeriod.Today) => GetSchedForPeriod(SchedulePeriod.Today),
-            nameof(SchedulePeriod.Tomorrow) => GetSchedForPeriod(SchedulePeriod.Tomorrow),
-            nameof(SchedulePeriod.Week) => GetSchedForPeriod(SchedulePeriod.Week),
-            nameof(SchedulePeriod.TwoWeeks) => GetSchedForPeriod(SchedulePeriod.TwoWeeks),
-            _ => null
-        };
+            case nameof(SchedulePeriod.Today):
+                sched = await GetSchedForPeriodAsync(SchedulePeriod.Today);
+                break;
+            case nameof(SchedulePeriod.Tomorrow):
+                sched = await GetSchedForPeriodAsync(SchedulePeriod.Tomorrow);
+                break;
+            case nameof(SchedulePeriod.Week):
+                sched = await GetSchedForPeriodAsync(SchedulePeriod.Week);
+                break;
+            case nameof(SchedulePeriod.TwoWeeks):
+                sched = await GetSchedForPeriodAsync(SchedulePeriod.TwoWeeks);
+                break;
+        }
 
         if (sched == null)
         {
             Log.Error($"Can't handle CallbackQuery with data: {cbQuery.Data}, text: {cbQuery.Message?.Text}");
-            sched = "Произошла ошибка";
+            sched = "Произошла ошибка при получении расписания.";
         }
-
 
         await bot.EditMessageText(
             cbQuery.Message!.Chat,
@@ -171,7 +181,7 @@ public class Bot : IDisposable
                 break;
 
             case "/today":
-                var todaySched = GetSchedForPeriod(SchedulePeriod.Today);
+                var todaySched = await GetSchedForPeriodAsync(SchedulePeriod.Today);
                 await bot.SendMessage(
                     message.Chat.Id,
                     todaySched
@@ -179,7 +189,7 @@ public class Bot : IDisposable
                 break;
 
             case "/tmrw":
-                var tomorrowSched = GetSchedForPeriod(SchedulePeriod.Tomorrow);
+                var tomorrowSched = await GetSchedForPeriodAsync(SchedulePeriod.Tomorrow);
                 await bot.SendMessage(
                     message.Chat.Id,
                     tomorrowSched
@@ -187,7 +197,7 @@ public class Bot : IDisposable
                 break;
 
             case "/week":
-                var weekSched = GetSchedForPeriod(SchedulePeriod.Week);
+                var weekSched = await GetSchedForPeriodAsync(SchedulePeriod.Week);
                 await bot.SendMessage(
                     message.Chat.Id,
                     weekSched
@@ -195,7 +205,7 @@ public class Bot : IDisposable
                 break;
 
             case "/2week":
-                var twoWeeksSched = GetSchedForPeriod(SchedulePeriod.TwoWeeks);
+                var twoWeeksSched = await GetSchedForPeriodAsync(SchedulePeriod.TwoWeeks);
                 await bot.SendMessage(
                     message.Chat.Id,
                     twoWeeksSched
@@ -203,10 +213,7 @@ public class Bot : IDisposable
                 break;
 
             case "/slots":
-                await bot.SendMessage(
-                    message.Chat.Id,
-                    "Додепчик пошел"
-                );
+                await bot.SendMessage(message.Chat.Id, "Додепчик пошел");
                 await bot.SendDice(
                     message.Chat.Id,
                     "🎰"
@@ -242,51 +249,43 @@ public class Bot : IDisposable
         await bot.SendMessage(message.Chat, "Выбери какое расписание тебе нужно:", replyMarkup: schedInlineMarkup);
     }
 
-    private string GetSchedForPeriod(SchedulePeriod period)
+    private async Task<string> GetSchedForPeriodAsync(SchedulePeriod period)
     {
-        var lessons = TableParser.GetTableData(EnvReader.GoogleApiKey, EnvReader.TableId, EnvReader.Fiit2Range);
-        var dates = GetDateRange(period)
-            .Select(d => (DayOfWeek: d.DayOfWeek, Evenness: DateOnlyExtensions.GetEvenness(d)))
-            .ToList();
-
-        // заглушка, пока нет регистрации юзеров
-        var userGroup = 240801;
-        var userSubGroup = 1;
-
-        var filtered = lessons
-            .Where(l => l.MenGroup == userGroup && l.SubGroup == userSubGroup
-                && dates.Any(d =>
-                d.DayOfWeek == (DayOfWeek)l.DayOfWeek &&
-                (l.EvennessOfWeek == Evenness.Always || d.Evenness == l.EvennessOfWeek)
-            ));
-
-        var result = "";
-        foreach (var group in filtered.GroupBy(l => l.DayOfWeek))
-            result += Formatter.FormatLessons(group.ToList());
-
-        return result;
-    }
-
-    private IEnumerable<DateOnly> GetDateRange(SchedulePeriod period)
-    {
-        var today = DateOnly.FromDateTime(DateTime.Now);
-
-        return period switch
+        try 
         {
-            SchedulePeriod.Today => new[] { today },
-            SchedulePeriod.Tomorrow => new[] { today.AddDays(1) },
-            SchedulePeriod.Week => Enumerable.Range(0, 7)
-                                    .Select(offset => today.AddDays(offset)),
-            SchedulePeriod.TwoWeeks => Enumerable.Range(0, 14)
-                                       .Select(offset => today.AddDays(offset)),
-            _ => throw new ArgumentException("Unknown period")
-        };
+            var factory = new ScheduleDbContextFactory();
+            using var context = factory.CreateDbContext(null);
+            
+            var repo = new ScheduleRepository(context);
+            var service = new ScheduleService(repo);
+
+            // Заглушка пользователя
+            var userGroup = 240801; 
+            var userSubGroup = 1;
+
+            var lessons = await service.GetFormattedScheduleAsync(userGroup, userSubGroup, period);
+
+            if (lessons == null || !lessons.Any())
+            {
+                return "Пар нет 🎉 (или база пуста)";
+            }
+
+            var result = "";
+            
+            foreach (var group in lessons.GroupBy(l => l.DayOfWeek))
+                result += Formatter.FormatLessons(group.ToList());
+
+            return result;
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error getting schedule from DB");
+            return "Произошла ошибка при получении данных из базы.";
+        }
     }
 
     private bool IsAdmin(User user)
     {
-        // durak online ID
-        // more admins later
         return user.Id == EnvReader.CreatorId;
     }
 

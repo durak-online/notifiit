@@ -12,20 +12,17 @@ internal class ParsedLessonInfo
     public string? SubjectName { get; set; }
     public string? TeacherName { get; set; }
     public string? ClassRoom { get; set; }
-    // Поле Date убрано, так как оно не использовалось и не заполнялось корректно в новой логике
 }
 
 public abstract class TableParser
 {
     /// <summary>
-    /// Метод для отладки (из старого файла). 
-    /// Выводит расписание в консоль.
+    /// Метод для отладки. Выводит расписание в консоль.
     /// </summary>
     public static void ShowTables()
     {
         try
         {
-            // Вызываем с null, чтобы получить все группы (как в старой версии)
             var scheduleData = GetTableData(EnvReader.GoogleApiKey, EnvReader.TableId, EnvReader.Fiit2Range);
 
             foreach (var lesson in scheduleData)
@@ -45,10 +42,6 @@ public abstract class TableParser
         }
     }
 
-    /// <summary>
-    /// Основной метод получения данных.
-    /// targetGroups - необязательный параметр (для фильтрации). Если null - берет всё.
-    /// </summary>
     public static List<Lesson> GetTableData(string apiKey, string spreadsheetId, string range, int[]? targetGroups = null)
     {
         var service = new SheetsService(new Google.Apis.Services.BaseClientService.Initializer
@@ -57,13 +50,11 @@ public abstract class TableParser
             ApplicationName = "Schedule Parser"
         });
 
-        // 1. Получаем данные с учетом merged cells
         var values = GetValuesWithMergedCells(spreadsheetId, range, service);
         var gridData = GetGridData(spreadsheetId, range, service);
 
         if (values == null || values.Count < 4) return new List<Lesson>();
 
-        // 2. Строим карты колонок
         var columnGroupMap = BuildGroupMap(values[1]);
         var columnSubgroupMap = BuildSubgroupMap(values[2]);
 
@@ -91,7 +82,6 @@ public abstract class TableParser
             if (row == null || row.Count == 0) 
                 continue;
             
-            // Пропуск строк "Общая информация" (из новой версии)
             var firstCell = row.Count > 0 ? row[0]?.ToString() : "";
             if (firstCell != null && firstCell.Contains("Общая информация"))
                 continue;
@@ -130,19 +120,16 @@ public abstract class TableParser
     {
         for (var j = 2; j < row.Count; j++)
         {
-            // Если нет маппинга для колонки - пропускаем
             if (!columnSubgroupMap.ContainsKey(j) || !columnGroupMap.ContainsKey(j)) continue;
 
             var cellContent = row[j]?.ToString();
             if (string.IsNullOrWhiteSpace(cellContent)) continue;
 
-            // Парсим номер группы
             var groupStr = columnGroupMap[j];
             var match = Regex.Match(groupStr, @"\d{6}");
             if (!match.Success) continue;
             var menGroup = int.Parse(match.Value);
 
-            // Фильтр по группам (если задан)
             if (targetGroups != null && targetGroups.Length > 0 && !targetGroups.Contains(menGroup)) 
                 continue;
 
@@ -150,7 +137,6 @@ public abstract class TableParser
             if (lessonInfo == null)
                 continue;
 
-            // Определение локации (смесь логики, приоритет у цвета)
             var location = "Тургенева, 4";
             if (cellContent.Contains("онлайн", StringComparison.InvariantCultureIgnoreCase))
                 location = "Онлайн";
@@ -165,7 +151,6 @@ public abstract class TableParser
 
             var eveness = GetEvenness(values, i, currentTime, j);
 
-            // Формируем уникальный ключ, чтобы избежать дублей
             var lessonKey = $"{currentDayOfWeek}_{currentPairNumber}_{menGroup}_{columnSubgroupMap[j]}_{lessonInfo.SubjectName}_{eveness}";
             
             if (seenLessons.Add(lessonKey))
@@ -189,9 +174,6 @@ public abstract class TableParser
 
     private static Evenness GetEvenness(IList<IList<object>> values, int i, TimeOnly? currentTime, int j)
     {
-        // Логика из нового файла (более продвинутая проверка соседей)
-        
-        // 1. Смотрим вперед
         if (i + 1 < values.Count)
         {
             var nextRow = values[i + 1];
@@ -206,14 +188,13 @@ public abstract class TableParser
             }
         }
         
-        // 2. Смотрим назад
         if (i - 1 >= 0) 
         {
             var prevRow = values[i - 1];
             var (prevTime, _) = GetTimeAndPairNumber(prevRow);
             if (prevTime != null && prevTime == currentTime)
             {
-                return Evenness.Even; // Если мы вторая строка в ячейке времени -> Четная
+                return Evenness.Even; 
             }
         }
 
@@ -222,62 +203,45 @@ public abstract class TableParser
 
     private static ParsedLessonInfo? GetCleanLessonInfo(string cell)
     {
-        if (cell.Contains("Физкультура", StringComparison.InvariantCultureIgnoreCase) ||
-            cell.Contains("Фузкультура", StringComparison.InvariantCultureIgnoreCase))
-            return new ParsedLessonInfo { SubjectName = "Физкультура" };
-
         var info = new ParsedLessonInfo();
         
-        // Чистка мусора
-        var clean = Regex.Replace(cell, @"[\u00A0\n\r]+", " ").Trim();
-        clean = Regex.Replace(clean, @"\b(онлайн|углубл[её]нная группа)\b", "", RegexOptions.IgnoreCase);
-        clean = Regex.Replace(clean, @"\b[сc]\s+\d{1,2}[:.]\d{2}\b.*$", "", RegexOptions.IgnoreCase);
-
-        // Поиск аудитории (3 цифры + буква)
-        var roomMatch = Regex.Match(clean, @"\b\d{3}[а-яА-Я]?\b");
-        if (roomMatch.Success)
+        if (cell.Contains("Физкультура", StringComparison.InvariantCultureIgnoreCase))
         {
-            info.ClassRoom = roomMatch.Value;
-            clean = clean.Replace(roomMatch.Value, "").Trim();
+            info.SubjectName = "Физкультура";
+            return info;
         }
 
-        // Поиск преподавателя (более точный паттерн из новой версии)
-        var teacherPattern = @"[А-Я][а-яё-]+\s+[А-Я]\.?\s*[А-Я]\.?";
-        var teacherMatch = Regex.Match(clean, teacherPattern);
+        var cleanCell = Regex.Replace(cell, @"\s*(?:\d{1,2}:\d{2}-\d{1,2}:\d{2}\s+)?с\s+\d{1,2}\s+\w+.*$", "").Trim();
 
-        if (teacherMatch.Success)
-        {
-            info.TeacherName = teacherMatch.Value;
-            clean = clean.Replace(teacherMatch.Value, "").Trim();
-        }
-        else
-        {
-            // Fallback: пытаемся угадать фамилию в конце строки
-            var parts = clean.Split(new[] { ',', ' ' }, StringSplitOptions.RemoveEmptyEntries);
-            if (parts.Length > 1)
-            {
-                var lastWord = parts.Last();
-                if (Regex.IsMatch(lastWord, @"^[А-Я][а-яё]{2,}$") && !lastWord.Contains("язык"))
-                {
-                    info.TeacherName = lastWord;
-                    var lastIdx = clean.LastIndexOf(lastWord);
-                    if (lastIdx > 0) clean = clean.Substring(0, lastIdx).Trim();
-                }
-            }
-        }
+        cleanCell = Regex.Replace(cleanCell, @"углублённая группа", "", RegexOptions.IgnoreCase).Trim();
 
-        clean = clean.Trim(',', '.', ' ');
-        clean = Regex.Replace(clean, @"\s*,\s*", ", ");
+        var parts = cleanCell.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .ToList();
         
-        if (string.IsNullOrWhiteSpace(clean)) 
-            return null;
-        info.SubjectName = clean;
+        if (parts.Count == 0) return null;
 
-        if (info.SubjectName.Contains("Иностранный язык", StringComparison.InvariantCultureIgnoreCase))
+        var classroom = parts.FirstOrDefault(p => Regex.IsMatch(p, @"^\d{3}$"));
+        if (classroom != null)
         {
-            info.SubjectName = "Иностранный язык";
-            info.ClassRoom = null; // У английского обычно нет одной аудитории
+            info.ClassRoom = classroom;
+            parts.Remove(classroom);
         }
+
+        while (parts.Count > 1)
+        {
+            if (info.TeacherName != null)
+            {
+                info.TeacherName += ", " + parts.Last();
+            }
+            else
+            {
+                info.TeacherName = parts.Last();
+            }
+            parts.RemoveAt(parts.Count - 1);
+        }
+
+        // Всё, что осталось - это предмет
+        info.SubjectName = string.Join(", ", parts);
 
         return info;
     }
@@ -342,7 +306,6 @@ public abstract class TableParser
         if (row.Count <= 0 || string.IsNullOrWhiteSpace(row[0]?.ToString())) 
             return current;
         var d = row[0].ToString();
-        // Защита от слишком длинных строк в колонке дня недели
         return d.Length > 10 ? current : d;
     }
 

@@ -1,45 +1,40 @@
-﻿using NotiFIITBot.Consts;
+﻿using NotiFIITBot.Consts; // Нужно для EnvReader, если вы захотите проверить загрузку переменных явно
 using Serilog;
 
 namespace NotiFIITBot.App;
 
 public class Program
 {
-    private static readonly CancellationTokenSource Cts = new();
+    private static readonly CancellationTokenSource cts = new();
 
-    public static async Task Main(string[] args)
+    public static async Task Main()
     {
-        ConfigureLogging();
-        Log.Information("[APP] Starting NotiFIITBot Application...");
+        if (!Directory.Exists("logs"))
+            Directory.CreateDirectory("logs");
+
+        Log.Logger = new LoggerConfiguration()
+            .WriteTo.Console()
+            .WriteTo.File($"logs/bot-{DateTime.Now:yyyy-MM-dd}.log")
+            .CreateLogger();
+
+        Log.Information("Started program");
+
+        Console.CancelKeyPress += OnCancelKeyPress;
+        AppDomain.CurrentDomain.ProcessExit += OnProcessExit;
 
         try
         {
-            try
-            {
-                _ = EnvReader.BotToken; 
-                Log.Information("[ENV] Environment variables loaded successfully.");
-            }
-            catch (Exception ex)
-            {
-                Log.Warning($"[ENV] .env file issue: {ex.Message}. Relying on system env vars.");
-            }
-
-            Console.CancelKeyPress += (sender, e) =>
-            {
-                e.Cancel = true;
-                Log.Information("[STOP] Stop signal received...");
-                Cts.Cancel();
-            };
-
             Log.Information("[SEED] Starting database update...");
             try
             {
                 var seeder = new DbSeeder();
-                var useTable = false; 
-                var useApi = true;
-                int[] groupsToUpdate = [150801]; // Можно сделать null для всех групп
-
-                await seeder.SeedAsync(useTable, useApi, groupsToUpdate);
+                
+                // Настройки запуска:
+                // useTable: true (грузить из Google Sheets)
+                // useApi: true (грузить из API УрФУ)
+                // targetGroups: null (обновить все группы) или new[] { 63804 } для конкретной
+                await seeder.SeedAsync(useTable: false, useApi: true, targetGroups: [240207]);
+                
                 Log.Information("[SEED] Database updated successfully.");
             }
             catch (Exception ex)
@@ -47,25 +42,21 @@ public class Program
                 Log.Error(ex, "[SEED] Error during database seeding. Continuing with existing data...");
             }
 
-            Log.Information("[BOT] Initializing Telegram Bot...");
             using var bot = new Bot();
-            await bot.Initialize(Cts);
-
-            Log.Information("[NOTIFIER] Starting notification scheduler...");
             var notifier = new Notifier(bot);
+
+            await bot.Initialize(cts);
             await notifier.Start();
 
-            Log.Information("[APP] Bot is running. Press Ctrl+C to stop.");
-
-            await Task.Delay(Timeout.Infinite, Cts.Token);
+            await Task.Delay(Timeout.Infinite, cts.Token);
         }
-        catch (OperationCanceledException)
+        catch (TaskCanceledException)
         {
-            Log.Information("[APP] Application stopped gracefully.");
+            Log.Information("Bot stopped gracefully");
         }
         catch (Exception ex)
         {
-            Log.Fatal(ex, "[APP] Critical error. Application terminated.");
+            Log.Fatal(ex, "Unexpected error"); 
         }
         finally
         {
@@ -73,14 +64,16 @@ public class Program
         }
     }
 
-    private static void ConfigureLogging()
+    private static void OnCancelKeyPress(object? sender, ConsoleCancelEventArgs e)
     {
-        if (!Directory.Exists("logs")) Directory.CreateDirectory("logs");
+        e.Cancel = true;
+        Log.Information("Received Ctrl+C, stopping bot...");
+        cts.Cancel();
+    }
 
-        Log.Logger = new LoggerConfiguration()
-            .MinimumLevel.Debug()
-            .WriteTo.Console()
-            .WriteTo.File($"logs/log-{DateTime.Now:yyyy-MM-dd}.txt", rollingInterval: RollingInterval.Day)
-            .CreateLogger();
+    private static void OnProcessExit(object? sender, EventArgs e)
+    {
+        Log.Information("Process exit requested, stopping bot...");
+        cts.Cancel();
     }
 }

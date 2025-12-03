@@ -1,7 +1,6 @@
-﻿using System.Globalization;
- using Microsoft.EntityFrameworkCore;
- using NotiFIITBot.Consts;
- using NotiFIITBot.Database.Data;
+﻿using Microsoft.EntityFrameworkCore;
+using NotiFIITBot.Consts;
+using NotiFIITBot.Database.Data;
 using NotiFIITBot.Database.Models;
 using NotiFIITBot.Domain;
 
@@ -43,6 +42,8 @@ namespace NotiFIITBot.Repo
                     existing.PairNumber = model.PairNumber;
                     existing.DayOfWeek = model.DayOfWeek;
                     existing.Evenness = model.Evenness;
+                    
+                    // Время НЕ трогаем, так как модель старая
 
                     result.Add(existing);
                 }
@@ -61,12 +62,16 @@ namespace NotiFIITBot.Repo
         {
             now ??= DateTime.Now;
 
+            // Фильтр по группе
             var q = _context.Lessons.AsNoTracking()
                 .Where(l => l.MenGroup == groupNumber);
 
             if (subGroup.HasValue)
-                q = q.Where(l => l.SubGroup == subGroup.Value || l.SubGroup == null);
+            {
+                q = q.Where(l => l.SubGroup == subGroup.Value || l.SubGroup == 0 || l.SubGroup == null);
+            }
 
+            //  Фильтр по дням недели
             var daysToLoad = period switch
             {
                 SchedulePeriod.Today => new() { now.Value.DayOfWeek },
@@ -77,6 +82,20 @@ namespace NotiFIITBot.Repo
             };
 
             q = q.Where(l => daysToLoad.Contains(l.DayOfWeek));
+            
+            //  Фильтр по четности 
+            var todayDate = DateOnly.FromDateTime(now.Value);
+            
+            if (period == SchedulePeriod.Today)
+            {
+                var todayEvenness = DateOnlyExtensions.GetEvenness(todayDate);
+                q = q.Where(l => l.Evenness == Evenness.Always || l.Evenness == todayEvenness);
+            }
+            else if (period == SchedulePeriod.Tomorrow)
+            {
+                var tmrwEvenness = DateOnlyExtensions.GetEvenness(todayDate.AddDays(1));
+                q = q.Where(l => l.Evenness == Evenness.Always || l.Evenness == tmrwEvenness);
+            }
 
             return await q.OrderBy(l => l.DayOfWeek)
                 .ThenBy(l => l.PairNumber)

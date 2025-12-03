@@ -14,9 +14,6 @@ public class DbSeeder
     private static string ConnectionString => 
         $"Host=localhost;Port=5434;Database={EnvReader.PostgresDbName};Username={EnvReader.PostgresUser};Password={EnvReader.PostgresPassword}";
     
-    private const string ApiKey = "AIzaSyDSC8k2yVH-OZvJE7ksssWeUxem04c2kPM";
-    private const string SpreadsheetId = "1pj8fzVqrZVkNssSJiInxy_Cm54ddC8tm8eluMdV-XvM";
-    private const string Range = "ФИИТ-1, с 15.09!A1:J84";
 
     public async Task SeedAsync(bool useTable, bool useApi, int[]? targetGroups = null)
     {
@@ -35,16 +32,37 @@ public class DbSeeder
         // 1. ГРУЗИМ ТАБЛИЦУ
         if (useTable)
         {
-            var tableData = TableParser.GetTableData(ApiKey, SpreadsheetId, Range)
-                .Where(l => l != null).ToList();
+            var ranges = new[] { EnvReader.Fiit1Range, EnvReader.Fiit2Range };
 
-            if (tableData.Any())
+            foreach (var currentRange in ranges)
             {
-                foreach (var l in tableData) 
-                    if (l.MenGroup.HasValue) tableGroupNumbers.Add(l.MenGroup.Value);
-                
-                allLessons.AddRange(tableData);
-                Log.Information($"[SEED] Loaded {tableData.Count} lessons from Table.");
+                if (string.IsNullOrWhiteSpace(currentRange))
+                {
+                    Log.Warning("[SEED] Range is empty in EnvReader, skipping...");
+                    continue;
+                }
+
+                try 
+                {
+                    var tableData = TableParser.GetTableData(
+                        EnvReader.GoogleApiKey, 
+                        EnvReader.TableId, 
+                        currentRange
+                    ).Where(l => l != null).ToList();
+
+                    if (tableData.Any())
+                    {
+                        foreach (var l in tableData) 
+                            if (l.MenGroup.HasValue) tableGroupNumbers.Add(l.MenGroup.Value);
+                        
+                        allLessons.AddRange(tableData);
+                        Log.Information($"[SEED] Loaded {tableData.Count} lessons from range {currentRange}.");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Log.Error($"[SEED] Error parsing range {currentRange}: {ex.Message}");
+                }
             }
         }
 
@@ -55,6 +73,8 @@ public class DbSeeder
             
             var apiGroups = new List<ApiParser.Group>();
             apiGroups.AddRange(await ApiParser.GetGroups(1));
+            apiGroups.AddRange(await ApiParser.GetGroups(2));
+            
 
             Log.Information($"[SEED] Found {apiGroups.Count} groups in API.");
 
