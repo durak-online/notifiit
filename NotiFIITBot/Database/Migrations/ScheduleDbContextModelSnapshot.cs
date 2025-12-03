@@ -8,7 +8,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 #nullable disable
 
-namespace NotiFIITBot.Database.Migrations
+namespace NotiFIITBot.Migrations
 {
     [DbContext(typeof(ScheduleDbContext))]
     partial class ScheduleDbContextModelSnapshot : ModelSnapshot
@@ -20,37 +20,41 @@ namespace NotiFIITBot.Database.Migrations
                 .HasAnnotation("ProductVersion", "9.0.10")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
-            NpgsqlModelBuilderExtensions.HasPostgresEnum(modelBuilder, "evenness", new[] { "even", "odd", "always" });
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
-            modelBuilder.Entity("LessonModel", b =>
+            modelBuilder.Entity("NotiFIITBot.Database.Models.LessonModel", b =>
                 {
-                    b.Property<int>("LessonId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
+                    b.Property<Guid>("LessonId")
+                        .HasColumnType("uuid")
                         .HasColumnName("lesson_id");
 
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("LessonId"));
-
-                    b.Property<int?>("ClassroomNumber")
-                        .HasColumnType("integer")
-                        .HasColumnName("classroom_number");
-
-                    b.Property<string>("ClassroomRoute")
+                    b.Property<string>("AuditoryLocation")
                         .HasColumnType("text")
                         .HasColumnName("classroom_route_url");
+
+                    b.Property<string>("ClassroomNumber")
+                        .HasColumnType("text")
+                        .HasColumnName("classroom_number");
 
                     b.Property<int>("DayOfWeek")
                         .HasColumnType("integer")
                         .HasColumnName("day_of_week");
 
+                    b.Property<int>("Evenness")
+                        .HasColumnType("integer")
+                        .HasColumnName("evenness");
+
+                    b.Property<int?>("MenGroup")
+                        .HasColumnType("integer")
+                        .HasColumnName("men_group");
+
                     b.Property<int>("PairNumber")
                         .HasColumnType("integer")
                         .HasColumnName("pair_number");
 
-                    b.Property<int>("Parity")
+                    b.Property<int?>("SubGroup")
                         .HasColumnType("integer")
-                        .HasColumnName("parity");
+                        .HasColumnName("sub_group");
 
                     b.Property<string>("SubjectName")
                         .HasMaxLength(255)
@@ -67,7 +71,7 @@ namespace NotiFIITBot.Database.Migrations
                     b.ToTable("lessons");
                 });
 
-            modelBuilder.Entity("NotiFIITBot.Models.User", b =>
+            modelBuilder.Entity("NotiFIITBot.Database.Models.User", b =>
                 {
                     b.Property<long>("TelegramId")
                         .ValueGeneratedOnAdd()
@@ -97,14 +101,14 @@ namespace NotiFIITBot.Database.Migrations
                     b.ToTable("users");
                 });
 
-            modelBuilder.Entity("NotiFIITBot.Models.UserNotificationConfig", b =>
+            modelBuilder.Entity("NotiFIITBot.Database.Models.UserNotificationConfig", b =>
                 {
                     b.Property<long>("TelegramId")
                         .HasColumnType("bigint")
                         .HasColumnName("telegram_id");
 
-                    b.Property<int>("LessonId")
-                        .HasColumnType("integer")
+                    b.Property<Guid>("LessonId")
+                        .HasColumnType("uuid")
                         .HasColumnName("lesson_id");
 
                     b.Property<bool?>("IsNotificationEnabledOverride")
@@ -122,7 +126,7 @@ namespace NotiFIITBot.Database.Migrations
                     b.ToTable("user_notification_config");
                 });
 
-            modelBuilder.Entity("NotiFIITBot.Models.WeekParityConfig", b =>
+            modelBuilder.Entity("NotiFIITBot.Database.Models.WeekParityConfig", b =>
                 {
                     b.Property<int>("Parity")
                         .HasColumnType("integer")
@@ -137,15 +141,15 @@ namespace NotiFIITBot.Database.Migrations
                     b.ToTable("week_parity_configs");
                 });
 
-            modelBuilder.Entity("NotiFIITBot.Models.UserNotificationConfig", b =>
+            modelBuilder.Entity("NotiFIITBot.Database.Models.UserNotificationConfig", b =>
                 {
-                    b.HasOne("LessonModel", "Lesson")
+                    b.HasOne("NotiFIITBot.Database.Models.LessonModel", "Lesson")
                         .WithMany()
                         .HasForeignKey("LessonId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("NotiFIITBot.Models.User", "User")
+                    b.HasOne("NotiFIITBot.Database.Models.User", "User")
                         .WithMany()
                         .HasForeignKey("TelegramId")
                         .OnDelete(DeleteBehavior.Cascade)

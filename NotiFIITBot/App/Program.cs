@@ -1,43 +1,71 @@
-﻿using Serilog;
+﻿using NotiFIITBot.Consts;
+using Serilog;
 
 namespace NotiFIITBot.App;
 
 public class Program
 {
-    private static readonly CancellationTokenSource cts = new();
+    private static readonly CancellationTokenSource Cts = new();
 
-    public static async Task Main()
+    public static async Task Main(string[] args)
     {
-        if (!Directory.Exists("logs"))
-            Directory.CreateDirectory("logs");
-
-        Log.Logger = new LoggerConfiguration()
-            .WriteTo.Console()
-            .WriteTo.File($"logs/bot-{DateTime.Now:yyyy-MM-dd}.log")
-            .CreateLogger();
-
-        Log.Information("Started program");
-
-        Console.CancelKeyPress += OnCancelKeyPress;
-        AppDomain.CurrentDomain.ProcessExit += OnProcessExit;
+        ConfigureLogging();
+        Log.Information("[APP] Starting NotiFIITBot Application...");
 
         try
         {
-            using var bot = new Bot();
-            var notifier = new Notifier(bot);
+            try
+            {
+                _ = EnvReader.BotToken; 
+                Log.Information("[ENV] Environment variables loaded successfully.");
+            }
+            catch (Exception ex)
+            {
+                Log.Warning($"[ENV] .env file issue: {ex.Message}. Relying on system env vars.");
+            }
 
-            await bot.Initialize(cts);
+            Console.CancelKeyPress += (sender, e) =>
+            {
+                e.Cancel = true;
+                Log.Information("[STOP] Stop signal received...");
+                Cts.Cancel();
+            };
+
+            Log.Information("[SEED] Starting database update...");
+            try
+            {
+                var seeder = new DbSeeder();
+                var useTable = false; 
+                var useApi = true;
+                int[] groupsToUpdate = [150801]; // Можно сделать null для всех групп
+
+                await seeder.SeedAsync(useTable, useApi, groupsToUpdate);
+                Log.Information("[SEED] Database updated successfully.");
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "[SEED] Error during database seeding. Continuing with existing data...");
+            }
+
+            Log.Information("[BOT] Initializing Telegram Bot...");
+            using var bot = new Bot();
+            await bot.Initialize(Cts);
+
+            Log.Information("[NOTIFIER] Starting notification scheduler...");
+            var notifier = new Notifier(bot);
             await notifier.Start();
 
-            await Task.Delay(Timeout.Infinite, cts.Token);
+            Log.Information("[APP] Bot is running. Press Ctrl+C to stop.");
+
+            await Task.Delay(Timeout.Infinite, Cts.Token);
         }
-        catch (TaskCanceledException)
+        catch (OperationCanceledException)
         {
-            Log.Information("Bot stopped gracefully");
+            Log.Information("[APP] Application stopped gracefully.");
         }
         catch (Exception ex)
         {
-            Log.Fatal($"Unexpected error: {ex}");
+            Log.Fatal(ex, "[APP] Critical error. Application terminated.");
         }
         finally
         {
@@ -45,16 +73,14 @@ public class Program
         }
     }
 
-    private static void OnCancelKeyPress(object? sender, ConsoleCancelEventArgs e)
+    private static void ConfigureLogging()
     {
-        e.Cancel = true;
-        Log.Information("Received Ctrl+C, stopping bot...");
-        cts.Cancel();
-    }
+        if (!Directory.Exists("logs")) Directory.CreateDirectory("logs");
 
-    private static void OnProcessExit(object? sender, EventArgs e)
-    {
-        Log.Information("Process exit requested, stopping bot...");
-        cts.Cancel();
+        Log.Logger = new LoggerConfiguration()
+            .MinimumLevel.Debug()
+            .WriteTo.Console()
+            .WriteTo.File($"logs/log-{DateTime.Now:yyyy-MM-dd}.txt", rollingInterval: RollingInterval.Day)
+            .CreateLogger();
     }
 }

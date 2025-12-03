@@ -32,7 +32,6 @@ public class Bot : IDisposable
             this.httpClient = httpClient;
 
             bot = new TelegramBotClient(token: EnvReader.BotToken, httpClient: httpClient);
-            //bot = new TelegramBotClient(token: token);
 
             using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
             var info = await bot.GetMe(timeoutCts.Token);
@@ -72,7 +71,7 @@ public class Bot : IDisposable
             }
             catch
             {
-                continue;
+                // ignored
             }
         }
 
@@ -139,11 +138,10 @@ public class Bot : IDisposable
         {
             Log.Error($"Telegram Bot Error: {exception}");
 
-            if (exception is ApiRequestException apiException && apiException.ErrorCode == 401)
-            {
-                Log.Fatal("Invalid token, stopping bot...");
-                cts.Cancel();
-            }
+            if (exception is not ApiRequestException apiException || apiException.ErrorCode != 401)
+                return;
+            Log.Fatal("Invalid token, stopping bot...");
+            cts.Cancel();
         }, cancellationToken);
     }
 
@@ -248,7 +246,7 @@ public class Bot : IDisposable
     {
         var lessons = TableParser.GetTableData(EnvReader.GoogleApiKey, EnvReader.TableId, EnvReader.Fiit2Range);
         var dates = GetDateRange(period)
-            .Select(d => (DayOfWeek: d.DayOfWeek, Evenness: d.Evenness()))
+            .Select(d => (DayOfWeek: d.DayOfWeek, Evenness: DateOnlyExtensions.GetEvenness(d)))
             .ToList();
 
         // заглушка, пока нет регистрации юзеров

@@ -29,6 +29,7 @@ public class Lesson
     
     public DayOfWeek? DayOfWeek { get; set; }
     public Evenness EvennessOfWeek { get; set; }
+    public Guid? LessonId { get; set; }
     public string? AuditoryLocation { get; set; }
     public int? SubGroup { get; set; }
     public int? MenGroup { get; set; }

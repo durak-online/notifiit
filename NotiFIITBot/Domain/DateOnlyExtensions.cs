@@ -4,7 +4,7 @@ namespace NotiFIITBot.Domain;
 
 public static class DateOnlyExtensions
 {
-    public static Evenness Evenness(this DateOnly date)
+    public static Evenness GetEvenness(this DateOnly date)
     {
         var firstMonday = date.GetFirstStudyDay();
         var indexOfWeek = (date.DayNumber - firstMonday.DayNumber) / 7;
