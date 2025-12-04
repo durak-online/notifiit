@@ -33,7 +33,7 @@ public class Program
                 // useTable: true (грузить из Google Sheets)
                 // useApi: true (грузить из API УрФУ)
                 // targetGroups: null (обновить все группы) или new[] { 63804 } для конкретной
-                await seeder.SeedAsync(useTable: false, useApi: true, targetGroups: [240207]);
+                await seeder.SeedAsync(useTable: true, useApi: false, targetGroups: []);
                 
                 Log.Information("[SEED] Database updated successfully.");
             }
