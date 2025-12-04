@@ -170,8 +170,10 @@ public abstract class TableParser
                         gridData.RowData[i].Values != null && gridData.RowData[i].Values.Count > j)
                     {
                         var colorLoc = GetLocationByColor(gridData.RowData[i].Values[j]);
-                        if (colorLoc == "Онлайн") location = "Онлайн";
-                        else if (colorLoc != "Тургенева, 4") location = colorLoc;
+                        if (colorLoc == "Онлайн") 
+                            location = "Онлайн";
+                        else if (colorLoc != "Тургенева, 4") 
+                            location = colorLoc;
                     }
                 }
                 catch { /* ignore */ }
@@ -334,21 +336,25 @@ public abstract class TableParser
 
     private static string GetLocationByColor(CellData cell)
     {
-        if (cell?.EffectiveFormat?.BackgroundColor == null) return "Тургенева, 4";
+        if (cell?.EffectiveFormat?.BackgroundColor == null)
+            return "Тургенева, 4";
         var bgColor = cell.EffectiveFormat.BackgroundColor;
         bool IsColor(float? r, float? g, float? b, float targetR, float targetG, float targetB)
         {
             var e = 0.05f;
             return Math.Abs((r ?? 0) - targetR) < e && Math.Abs((g ?? 0) - targetG) < e && Math.Abs((b ?? 0) - targetB) < e;
         }
-        if (IsColor(bgColor.Red, bgColor.Green, bgColor.Blue, 0.941f, 1f, 0.686f)) return "Куйбышева, 48";
-        if (IsColor(bgColor.Red, bgColor.Green, bgColor.Blue, 0.898f, 0.937f, 1f)) return "Онлайн";
+        if (IsColor(bgColor.Red, bgColor.Green, bgColor.Blue, 0.941f, 1f, 0.686f)) 
+            return "Куйбышева, 48";
+        if (IsColor(bgColor.Red, bgColor.Green, bgColor.Blue, 0.898f, 0.937f, 1f))
+            return "Онлайн";
         return IsColor(bgColor.Red, bgColor.Green, bgColor.Blue, 0.81f, 0.88f, 0.95f) ? "Онлайн" : "Тургенева, 4";
     }
 
     private static string? GetDayOfWeek(IList<object> row, string? currentDayOfWeek)
     {
-        if (row.Count > 0 && !string.IsNullOrWhiteSpace(row[0].ToString())) currentDayOfWeek = row[0].ToString();
+        if (row.Count > 0 && !string.IsNullOrWhiteSpace(row[0].ToString()))
+            currentDayOfWeek = row[0].ToString();
         return currentDayOfWeek;
     }
 
@@ -358,9 +364,11 @@ public abstract class TableParser
         for (var j = 0; j < subgroupsRow.Count; j++)
         {
             var subgroupCell = subgroupsRow[j]?.ToString();
-            if (string.IsNullOrWhiteSpace(subgroupCell)) continue;
+            if (string.IsNullOrWhiteSpace(subgroupCell)) 
+                continue;
             var match = Regex.Match(subgroupCell, @"\d+", RegexOptions.RightToLeft);
-            if (match.Success && int.TryParse(match.Value, out var subgroupNumber)) columnSubgroupMap[j] = subgroupNumber;
+            if (match.Success && int.TryParse(match.Value, out var subgroupNumber)) 
+                columnSubgroupMap[j] = subgroupNumber;
         }
         return columnSubgroupMap;
     }
@@ -372,7 +380,8 @@ public abstract class TableParser
         {
             var groupCell = groupsRow[j]?.ToString();
             if (string.IsNullOrWhiteSpace(groupCell) ||
-                !groupCell.Contains("МЕН", StringComparison.InvariantCultureIgnoreCase)) continue;
+                !groupCell.Contains("МЕН", StringComparison.InvariantCultureIgnoreCase)) 
+                continue;
             var match = Regex.Match(groupCell, @"МЕН\s*-?\s*\d+", RegexOptions.IgnoreCase);
             var groupName = match.Success ? match.Value.Replace(" ", "") : groupCell.Trim();
             columnGroupMap[j] = groupName;
@@ -419,7 +428,8 @@ public abstract class TableParser
 
         foreach (var merge in merges)
         {
-            if (merge.StartRowIndex == null || merge.EndRowIndex == null || merge.StartColumnIndex == null || merge.EndColumnIndex == null) continue;
+            if (merge.StartRowIndex == null || merge.EndRowIndex == null || merge.StartColumnIndex == null || merge.EndColumnIndex == null) 
+                continue;
             var startRow = (int)merge.StartRowIndex;
             var endRow = (int)merge.EndRowIndex;
             var startCol = (int)merge.StartColumnIndex;
@@ -432,9 +442,11 @@ public abstract class TableParser
                 continue;
             for (var i = startRow; i < endRow; i++)
             {
-                while (values.Count <= i) values.Add(new List<object>());
+                while (values.Count <= i) 
+                    values.Add(new List<object>());
                 for (var j = startCol; j < endCol; j++) {
-                    while (values[i].Count <= j) values[i].Add(null);
+                    while (values[i].Count <= j)
+                        values[i].Add(null);
                     values[i][j] = mergedValue;
                 }
             }

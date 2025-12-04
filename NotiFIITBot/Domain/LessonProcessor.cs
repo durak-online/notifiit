@@ -21,7 +21,6 @@ public static class LessonProcessor
             l.TeacherName,
             l.ClassRoom,
             l.EvennessOfWeek, 
-            l.AuditoryLocation
         });
 
         foreach (var group in groups)
@@ -34,7 +33,8 @@ public static class LessonProcessor
             // Если пара есть у ОБЕИХ подгрупп -> схлопываем в 0
             if (hasSub1 && hasSub2)
             {
-                var commonLesson = list.First();
+                var commonLesson = list.FirstOrDefault(x => x.AuditoryLocation != "Тургенева, 4") 
+                                   ?? list.First();
                 commonLesson.SubGroup = 0; 
                 yield return commonLesson;
             }
