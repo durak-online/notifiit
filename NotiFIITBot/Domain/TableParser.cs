@@ -14,7 +14,7 @@ internal class ParsedLessonInfo
     public string? SubjectName { get; set; }
     public string? TeacherName { get; set; }
     public string? ClassRoom { get; set; }
-    public DateOnly? Date { get; set; }
+    public TimeOnly? Begin { get; set; }
 }
 
 public class TableParser
@@ -23,7 +23,7 @@ public class TableParser
     {
         try
         {
-            var scheduleData = GetTableData(EnvReader.GoogleApiKey, EnvReader.TableId, EnvReader.Fiit2Range);
+            var scheduleData = GetTableData(EnvReader.GoogleApiKey, EnvReader.TableId, EnvReader.Fiit1Range);
             //scheduleData = scheduleData.Where(les => les.MenGroup == 150810).ToList();
             foreach (var lesson in scheduleData)
             {
@@ -120,7 +120,7 @@ public class TableParser
             if (string.IsNullOrWhiteSpace(lessonCell) || !columnSubgroupMap.ContainsKey(j)) continue;
 
             var lessonInfo = GetCleanLessonInfo(lessonCell);
-            if (lessonInfo == null) continue;
+            if (lessonInfo == null) continue; 
 
             var location = GetLocationByColor(gridData.RowData[i].Values[j]);
             if (location == "Онлайн") lessonInfo.ClassRoom = "Онлайн"; //вроде надо было
@@ -136,7 +136,7 @@ public class TableParser
                     lessonInfo.SubjectName,
                     lessonInfo.TeacherName,
                     lessonInfo.ClassRoom,
-                    currentTime,
+                    lessonInfo.Begin ?? currentTime,
                     null,
                     location,
                     columnSubgroupMap[j],
@@ -241,25 +241,19 @@ public class TableParser
 
     private static (TimeOnly?, int) GetTimeAndNumberOfPairFromRow(IList<object> row)
     {
-        TimeOnly? currentTime;
+        TimeOnly? currentTime = TimeOnly.MinValue;
         var timeCell = row[1].ToString();
         var parts = timeCell.Split(' ', StringSplitOptions.RemoveEmptyEntries);
         var currentPairNumber = -1;
         if (parts.Length > 0) currentPairNumber = ParseRomanNumeral(parts[0]);
         
-        if (row.Count > 2 && row[2] != null && (row[2].ToString().Contains("Физкультура") || row[2].ToString().Contains("Фузкультура"))) //Хардкод физ-ры
+        // регулярка, чтобы не ломалось для необычных
+        var timeMatch = Regex.Match(timeCell, @"(\d{1,2}:\d{2})");
+        if (timeMatch.Success && TimeOnly.TryParse(timeMatch.Value, out var time))
         {
-            var timeMatch = Regex.Match(row[2].ToString(), @"(\d{1,2}:\d{2})-(\d{1,2}:\d{2})");
-            if (timeMatch.Success)
-            {
-                return (TimeOnly.Parse(timeMatch.Groups[1].Value), currentPairNumber);
-            };
-        }
-
-        if (TimeOnly.TryParse(parts[1], out var time))
             currentTime = time;
-        else
-            currentTime = null;
+        }
+        
         return (currentTime, currentPairNumber);
     }
 
@@ -306,12 +300,21 @@ public class TableParser
     private static ParsedLessonInfo? GetCleanLessonInfo(string cell)
     {
         var info = new ParsedLessonInfo();
+        
+        //Уточнённое в ячейке время
+        var startTimeMatch = Regex.Match(cell, @"(\d{1,2}:\d{2})");
+        if (startTimeMatch.Success)
+        {
+            if (TimeOnly.TryParse(startTimeMatch.Groups[1].Value, out var begin)) info.Begin = begin;
+            cell = cell.Replace(startTimeMatch.Value, "").Trim();
+        }
+        
         if (cell.Contains("Физкультура") || cell.Contains("Фузкультура"))
         {
             info.SubjectName = "Физкультура";
             return info;
         }
-
+        
         //Убираем пометки "такое-то время с такой-то даты"
         var cleanCell = Regex.Replace(cell, @"\s*(?:\d{1,2}:\d{2}-\d{1,2}:\d{2}\s+)?с\s+\d{1,2}\s+\w+.*$", "").Trim();
 
@@ -338,7 +341,7 @@ public class TableParser
         parts.RemoveAt(0);
         while (parts.Count > 0)
         {
-            if (Regex.IsMatch(parts.Last(), @"^.+(\d{3}[а-я]?|онлайн)$", RegexOptions.IgnoreCase)) //хардкод дермового случая 1курса (ПЭК четверг)
+            if (Regex.IsMatch(parts.Last(), @"^.+(\d{3}[а-я]?|онлайн)$", RegexOptions.IgnoreCase)) //хардкод дермового случая 1 курса (ПЭК четверг)
             {
                 info.ClassRoom = parts.Last().Split(' ')[1];
                 info.TeacherName = parts.Last().Split(' ')[0];
