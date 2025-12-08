@@ -3,7 +3,6 @@ using System.Text.RegularExpressions;
 using Google.Apis.Services;
 using Google.Apis.Sheets.v4;
 using Google.Apis.Sheets.v4.Data;
-using Serilog;
 using NotiFIITBot.Consts;
 
 namespace NotiFIITBot.Domain;
@@ -23,7 +22,7 @@ public class TableParser
     {
         try
         {
-            var scheduleData = GetTableData(EnvReader.GoogleApiKey, EnvReader.TableId, EnvReader.Fiit1Range);
+            var scheduleData = GetTableData(EnvReader.GoogleApiKey, EnvReader.TableId, EnvReader.Fiit2Range);
             //scheduleData = scheduleData.Where(les => les.MenGroup == 150810).ToList();
             foreach (var lesson in scheduleData)
             {
@@ -120,16 +119,17 @@ public class TableParser
             if (string.IsNullOrWhiteSpace(lessonCell) || !columnSubgroupMap.ContainsKey(j)) continue;
 
             var lessonInfo = GetCleanLessonInfo(lessonCell);
-            if (lessonInfo == null) continue; 
+            if (lessonInfo == null) continue;
 
             var location = GetLocationByColor(gridData.RowData[i].Values[j]);
             if (location == "Онлайн") lessonInfo.ClassRoom = "Онлайн"; //вроде надо было
             var menGroup = int.Parse(columnGroupMap[j].Split("-")[1]);
-            
+
             var eveness = GetEvenness(values, i, currentTime, j);
-            
-            var lessonKey = $"{currentDayOfWeek}_{currentPairNumber}_{currentTime}_{menGroup}_{columnSubgroupMap[j]}_{lessonInfo.SubjectName}_{lessonInfo.TeacherName}_{lessonInfo.ClassRoom}";
-            if (seenLessons.Add(lessonKey)) 
+
+            var lessonKey =
+                $"{currentDayOfWeek}_{currentPairNumber}_{currentTime}_{menGroup}_{columnSubgroupMap[j]}_{lessonInfo.SubjectName}_{lessonInfo.TeacherName}_{lessonInfo.ClassRoom}";
+            if (seenLessons.Add(lessonKey))
             {
                 var lesson = new Lesson(
                     currentPairNumber,
@@ -148,7 +148,7 @@ public class TableParser
             }
         }
     }
-    
+
     //старый, пусть пока будет
     // private static Evenness GetEvenness2(IList<IList<object>> values, int i, [DisallowNull] TimeOnly? currentTime, int j) 
     // {
@@ -165,7 +165,7 @@ public class TableParser
     //     }
     //     return eveness;
     // }
-    
+
     private static Evenness GetEvenness(IList<IList<object>> values, int i, [DisallowNull] TimeOnly? currentTime, int j)
     {
         var eveness = Evenness.Always;
@@ -174,9 +174,7 @@ public class TableParser
             nextRow[j].ToString() == values[i][j].ToString() &&
             GetTimeAndNumberOfPairFromRow(nextRow).Item1.ToString() ==
             currentTime.ToString())
-        {
             return eveness;
-        }
         return OddOrEven(currentTime, nextRow);
     }
 
@@ -246,14 +244,11 @@ public class TableParser
         var parts = timeCell.Split(' ', StringSplitOptions.RemoveEmptyEntries);
         var currentPairNumber = -1;
         if (parts.Length > 0) currentPairNumber = ParseRomanNumeral(parts[0]);
-        
+
         // регулярка, чтобы не ломалось для необычных
         var timeMatch = Regex.Match(timeCell, @"(\d{1,2}:\d{2})");
-        if (timeMatch.Success && TimeOnly.TryParse(timeMatch.Value, out var time))
-        {
-            currentTime = time;
-        }
-        
+        if (timeMatch.Success && TimeOnly.TryParse(timeMatch.Value, out var time)) currentTime = time;
+
         return (currentTime, currentPairNumber);
     }
 
@@ -293,28 +288,26 @@ public class TableParser
 
         if (bgColor.Red == 0.8980392f && bgColor.Green == 0.9372549f && bgColor.Blue == 1f)
             return "Онлайн";
-        
+
         return "Тургенева, 4";
     }
 
     private static ParsedLessonInfo? GetCleanLessonInfo(string cell)
     {
         var info = new ParsedLessonInfo();
-        
+
         //Уточнённое в ячейке время
         var startTimeMatch = Regex.Match(cell, @"(\d{1,2}:\d{2})");
         if (startTimeMatch.Success)
-        {
-            if (TimeOnly.TryParse(startTimeMatch.Groups[1].Value, out var begin)) info.Begin = begin;
-            cell = cell.Replace(startTimeMatch.Value, "").Trim();
-        }
-        
+            if (TimeOnly.TryParse(startTimeMatch.Groups[1].Value, out var begin))
+                info.Begin = begin;
+
         if (cell.Contains("Физкультура") || cell.Contains("Фузкультура"))
         {
             info.SubjectName = "Физкультура";
             return info;
         }
-        
+
         //Убираем пометки "такое-то время с такой-то даты"
         var cleanCell = Regex.Replace(cell, @"\s*(?:\d{1,2}:\d{2}-\d{1,2}:\d{2}\s+)?с\s+\d{1,2}\s+\w+.*$", "").Trim();
 
@@ -323,12 +316,12 @@ public class TableParser
 
         var parts = cleanCell.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .ToList();
-        
-        parts.RemoveAll(p => 
+
+        parts.RemoveAll(p =>
             p.Trim().StartsWith("лекция", StringComparison.OrdinalIgnoreCase) ||
             p.Trim().StartsWith("консультация", StringComparison.OrdinalIgnoreCase) ||
             p.Contains("по расписанию"));
-        
+
         if (parts.Count == 0) return null;
         var classroomPattern = @"^(\d{3}[а-я]?|онлайн)$";
         var foundClassrooms = parts.FindAll(p => Regex.IsMatch(p, classroomPattern, RegexOptions.IgnoreCase));
@@ -337,27 +330,26 @@ public class TableParser
             info.ClassRoom = string.Join(", ", foundClassrooms);
             parts.RemoveAll(p => Regex.IsMatch(p, classroomPattern, RegexOptions.IgnoreCase));
         }
+
         info.SubjectName = parts.First();
         parts.RemoveAt(0);
         while (parts.Count > 0)
         {
-            if (Regex.IsMatch(parts.Last(), @"^.+(\d{3}[а-я]?|онлайн)$", RegexOptions.IgnoreCase)) //хардкод дермового случая 1 курса (ПЭК четверг)
+            if (Regex.IsMatch(parts.Last(), @"^.+(\d{3}[а-я]?|онлайн)$",
+                    RegexOptions.IgnoreCase)) //хардкод дермового случая 1 курса (ПЭК четверг)
             {
                 info.ClassRoom = parts.Last().Split(' ')[1];
                 info.TeacherName = parts.Last().Split(' ')[0];
                 return info;
             }
+
             if (info.TeacherName != null)
-            {
                 info.TeacherName += ", " + parts.Last();
-            }
             else
-            {
                 info.TeacherName += parts.Last();
-            }
             parts.RemoveAt(parts.Count - 1);
         }
-        
+
         return info;
     }
 
@@ -410,10 +402,10 @@ public class TableParser
 
         return values;
     }
-    
+
     /// <summary>
-    /// Получает данные сетки и распространяет форматирование (включая цвет) из левой верхней ячейки
-    /// на все остальные ячейки в объединенном диапазоне.
+    ///     Получает данные сетки и распространяет форматирование (включая цвет) из левой верхней ячейки
+    ///     на все остальные ячейки в объединенном диапазоне.
     /// </summary>
     public static GridData GetGridDataWithMergedCells(string spreadsheetId, string range, SheetsService service)
     {
@@ -422,10 +414,10 @@ public class TableParser
         mergesRequest.Fields = "sheets.merges";
         var spreadsheetWithMerges = mergesRequest.Execute();
         var merges = spreadsheetWithMerges.Sheets?.FirstOrDefault()?.Merges?.ToList() ?? new List<GridRange>();
-        
+
         var gridData = GetGridData(spreadsheetId, range, service);
         if (gridData.RowData == null) gridData.RowData = new List<RowData>();
-        
+
         foreach (var merge in merges)
         {
             if (merge.StartRowIndex == null || merge.StartColumnIndex == null ||
@@ -435,19 +427,17 @@ public class TableParser
             var endRow = (int)merge.EndRowIndex;
             var startCol = (int)merge.StartColumnIndex;
             var endCol = (int)merge.EndColumnIndex;
-            
+
             CellFormat mergedFormat = null;
             if (gridData.RowData.Count > startRow && gridData.RowData[startRow]?.Values != null &&
                 gridData.RowData[startRow].Values.Count > startCol)
-            {
                 mergedFormat = gridData.RowData[startRow].Values[startCol]?.EffectiveFormat;
-            }
-            
+
             if (mergedFormat != null)
-            {
                 for (var i = startRow; i < endRow; i++)
                 {
-                    while (gridData.RowData.Count <= i) gridData.RowData.Add(new RowData { Values = new List<CellData>() });
+                    while (gridData.RowData.Count <= i)
+                        gridData.RowData.Add(new RowData { Values = new List<CellData>() });
                     var row = gridData.RowData[i];
                     if (row.Values == null) row.Values = new List<CellData>();
 
@@ -458,7 +448,6 @@ public class TableParser
                         row.Values[j].EffectiveFormat = mergedFormat;
                     }
                 }
-            }
         }
 
         return gridData;
