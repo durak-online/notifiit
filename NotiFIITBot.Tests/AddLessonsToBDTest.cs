@@ -1,61 +1,124 @@
 ﻿using System;
+using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
+using NotiFIITBot.Consts;
 using NotiFIITBot.Database.Data;
-using NotiFIITBot.Database.Repo;
-using NotiFIITBot.Domain;
+using NotiFIITBot.Database.Models;
+using NotiFIITBot.Repo;
+using NUnit.Framework;
 
-namespace NotiFIITBot.Tests;
-
-public class ScheduleRepositoryIntegrationTests : IDisposable
+namespace NotiFIITBot.IntegrationTests
 {
-    private readonly ScheduleDbContext _context;
-    private readonly ScheduleRepository _repo;
-
-    public ScheduleRepositoryIntegrationTests()
+    [TestFixture]
+    public class ScheduleRepositoryIntegrationTests
     {
-        var options = new DbContextOptionsBuilder<ScheduleDbContext>()
-            .UseNpgsql("Host=localhost;Port=5433;Database=notifiit_db;Username=notifiit_admin;Password=226381194")
-            .Options;
+        private ScheduleDbContext _context = null!;
+        private ScheduleRepository _repo = null!;
+        private IDbContextTransaction? _tx;
 
-        _context = new ScheduleDbContext(options);
-        _repo = new ScheduleRepository(_context);
-    }
+        private const string ConnectionString =
+            "Host=localhost;Port=5433;Database=notifiit_db;Username=notifiit_admin;Password=226381194";
 
-    [Test]
-    public async Task UpsertLesson_ShouldAddAndRemoveLessonInDatabase()
-    {
-        // Arrange
-        var lesson = new Lesson(
-            pairNumber: 1,
-            subjectName: "Тестовая математика",
-            teacherName: "Тестов И.И.",
-            classRoom: "999",
-            begin: new TimeOnly(9, 0),
-            end: new TimeOnly(10, 30),
-            auditoryLocation: "Тестовая аудитория",
-            subGroup: 1,
-            menGroup: 101,
-            evennessOfWeek: NotiFIITBot.Consts.Evenness.Even,
-            dayOfWeek: DayOfWeek.Monday
-        );
+        [SetUp]
+        public async Task SetUp()
+        {
+            var options = new DbContextOptionsBuilder<ScheduleDbContext>()
+                .UseNpgsql(ConnectionString)
+                .Options;
 
-        // Act
-        var savedLesson = await _repo.UpsertLessonAsync(lesson);
-        await _context.SaveChangesAsync();
+            _context = new ScheduleDbContext(options);
+            _repo = new ScheduleRepository(_context);
 
-        // Assert
-        Assert.NotNull(savedLesson);
-        Assert.True(savedLesson.LessonId > 0);
+            _tx = await _context.Database.BeginTransactionAsync();
+        }
 
-        var fromDb = await _context.Lessons.FirstOrDefaultAsync(l => l.LessonId == savedLesson.LessonId);
-        Assert.NotNull(fromDb);
-        Assert.That("Тестовая математика" == fromDb.SubjectName);
-        
-    }
+        [TearDown]
+        public async Task TearDown()
+        {
+            try
+            {
+                if (_tx != null)
+                {
+                    await _tx.RollbackAsync();
+                    await _tx.DisposeAsync();
+                    _tx = null;
+                }
+            }
+            finally
+            {
+                if (_context != null)
+                {
+                    await _context.DisposeAsync();
+                    _context = null!;
+                }
+            }
+        }
 
-    public void Dispose()
-    {
-        _context.Dispose();
+        [Test]
+        public async Task UpsertLessonsAsync_ShouldAddAndRetrieveLesson()
+        {
+            var model = new LessonModel
+            {
+                MenGroup = 999999,
+                SubGroup = 1,
+                DayOfWeek = DayOfWeek.Monday,
+                PairNumber = 1,
+                Evenness = Evenness.Even,
+                SubjectName = "Тестовый урок",
+                TeacherName = "Ненастоящий преподаватель",
+                ClassroomNumber = "777",
+            };
+            
+            var saved = await _repo.UpsertLessonsAsync(new[] { model });
+            
+            Assert.IsNotNull(saved);
+            Assert.IsNotEmpty(saved);
+
+            var returned = saved.First();
+            
+            Assert.AreEqual("Integration Test Subject", returned.SubjectName);
+            
+            var fromDb = await _context.Lessons.FindAsync(returned.LessonId);
+            Assert.IsNotNull(fromDb, "Запись не найдена в БД в рамках транзакции.");
+            Assert.AreEqual("Integration Test Subject", fromDb!.SubjectName);
+        }
+
+        [Test]
+        public async Task GetScheduleAsync_ShouldReturnLessonsForGroupAndDay()
+        {
+            var gid = 111111; // menGroup для теста
+            var lessonEven = new LessonModel
+            {
+                LessonId = Guid.NewGuid(),
+                MenGroup = gid,
+                SubGroup = null,
+                DayOfWeek = DayOfWeek.Tuesday,
+                PairNumber = 1,
+                Evenness = Evenness.Even,
+                SubjectName = "IT Test Even"
+            };
+            var lessonOdd = new LessonModel
+            {
+                LessonId = Guid.NewGuid(),
+                MenGroup = gid,
+                SubGroup = null,
+                DayOfWeek = DayOfWeek.Tuesday,
+                PairNumber = 2,
+                Evenness = Evenness.Odd,
+                SubjectName = "IT Test Odd"
+            };
+
+            await _context.Lessons.AddAsync(lessonEven);
+            await _context.Lessons.AddAsync(lessonOdd);
+            await _context.SaveChangesAsync();
+            
+            var results = await _repo.GetScheduleAsync(groupNumber: gid, subGroup: null,
+                SchedulePeriod.Week, now: new DateTime(2025, 2, 11));
+
+            Assert.IsTrue(results.Any(r => r.SubjectName == "IT Test Even"));
+            Assert.IsTrue(results.Any(r => r.SubjectName == "IT Test Odd"));
+        }
     }
 }

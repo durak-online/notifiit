@@ -1,128 +1,100 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
+using NotiFIITBot.Consts;
 using NotiFIITBot.Database.Data;
 using NotiFIITBot.Database.Models;
-using NotiFIITBot.Consts;
 using NotiFIITBot.Repo;
-using Xunit;
+using NUnit.Framework;
 
 namespace NotiFIITBot.Tests
 {
-    public class ScheduleRepositoryTests
+    [TestFixture]
+    public class ScheduleRepositoryUnitTests
     {
-        // --- Вспомогательный метод для создания In-Memory контекста ---
-        private ScheduleDbContext CreateInMemoryContext(string dbName)
+        private ScheduleDbContext _context = null!;
+        private ScheduleRepository _repo = null!;
+
+        [SetUp]
+        public void Setup()
         {
             var options = new DbContextOptionsBuilder<ScheduleDbContext>()
-                .UseInMemoryDatabase(dbName)
+                .UseInMemoryDatabase(Guid.NewGuid().ToString())
                 .Options;
 
-            return new ScheduleDbContext(options);
+            _context = new ScheduleDbContext(options);
+            _repo = new ScheduleRepository(_context);
         }
 
-        // --- Вспомогательные тестовые данные ---
-        private List<LessonModel> GetSampleLessons() => new()
+        [TearDown]
+        public void TearDown()
         {
-            new LessonModel
+            _context.Dispose();
+        }
+
+        [Test]
+        public async Task UpsertLessonsAsync_ShouldAddLesson_WhenNotExists()
+        {
+            var guid = Guid.NewGuid();
+
+            var model = new LessonModel
             {
-                LessonId = Guid.NewGuid(),
-                MenGroup = 353001,
-                SubGroup = null,
-                DayOfWeek = DayOfWeek.Monday,
-                PairNumber = 1,
+                LessonId = guid,
                 Evenness = Evenness.Even,
-                SubjectName = "Math"
-            },
-            new LessonModel
-            {
-                LessonId = Guid.NewGuid(),
-                MenGroup = 353001,
-                SubGroup = 1,
-                DayOfWeek = DayOfWeek.Monday,
                 PairNumber = 2,
-                Evenness = Evenness.Odd,
-                SubjectName = "Physics"
-            },
-            new LessonModel
-            {
-                LessonId = Guid.NewGuid(),
-                MenGroup = 353002,
-                SubGroup = null,
-                DayOfWeek = DayOfWeek.Tuesday,
-                PairNumber = 1,
-                Evenness = Evenness.Even,
-                SubjectName = "English"
-            }
-        };
-
-        // --- Тест чтения уроков ---
-        [Fact]
-        public async Task GetSchedule_ReturnsCorrectLessons_ForGivenGroup()
-        {
-            // Arrange
-            var ctx = CreateInMemoryContext(nameof(GetSchedule_ReturnsCorrectLessons_ForGivenGroup));
-            ctx.Lessons.AddRange(GetSampleLessons());
-            await ctx.SaveChangesAsync();
-
-            var repo = new ScheduleRepository(ctx);
-
-            // Дата: понедельник, 10 февраля 2025 (ISO неделя 7, нечётная)
-            var monday = new DateTime(2025, 2, 10);
-
-            // Act
-            var lessons = await repo.GetScheduleAsync(
-                groupNumber: 353001,
-                subGroup: null,
-                IScheduleRepository.SchedulePeriod.Today,
-                now: monday
-            );
-
-            // Assert
-            // Урок с Evenness = Odd (Physics) должен быть возвращён
-            Xunit.Assert.Single(lessons);
-            Xunit.Assert.Equal("Physics", lessons.First().SubjectName);
-        }
-
-        // --- Тест добавления урока через UpsertLessonsAsync ---
-        [Fact]
-        public async Task UpsertLessons_AddsNewLesson()
-        {
-            // Arrange
-            var ctx = CreateInMemoryContext(nameof(UpsertLessons_AddsNewLesson));
-            var repo = new ScheduleRepository(ctx);
-
-            var newLesson = new NotiFIITBot.Domain.Lesson(
-                pairNumber: 1,
-                subjectName: "Biology",
-                teacherName: null,
-                classRoom: null,
-                begin: null,
-                end: null,
-                auditoryLocation: null,
-                subGroup: 0,
-                menGroup: 353003,
-                evennessOfWeek: Evenness.Even,
-                dayOfWeek: DayOfWeek.Wednesday
-            )
-            {
-                LessonId = Guid.NewGuid() // Обязательно для UpsertLessonsAsync!
+                SubjectName = "Тестовая математика",
+                TeacherName = "Тестов И.И.",
+                ClassroomNumber = "101",
+                MenGroup = 240801,
+                SubGroup = 1,
+                DayOfWeek = DayOfWeek.Monday
             };
 
-            // Act
-            var result = await repo.UpsertLessonsAsync(new[] { newLesson });
+            var result = await _repo.UpsertLessonsAsync(new[] { model });
 
-            // Assert
-            Xunit.Assert.Single(result);
-            Xunit.Assert.Equal("Biology", result.First().SubjectName);
-            Xunit.Assert.Equal(353003, result.First().MenGroup);
+            Assert.That(result, Is.Not.Empty);
 
-            // Проверим, что урок реально добавился в контекст
-            var savedLesson = await ctx.Lessons.FindAsync(newLesson.LessonId);
-            Xunit.Assert.NotNull(savedLesson);
-            Xunit.Assert.Equal("Biology", savedLesson.SubjectName);
+            var fromDb = await _context.Lessons
+                .AsNoTracking()
+                .FirstOrDefaultAsync(x => x.LessonId == guid);
+
+            Assert.NotNull(fromDb);
+            Assert.AreEqual("Тестовая математика", fromDb.SubjectName);
+        }
+
+        [Test]
+        public async Task UpsertLessonsAsync_ShouldUpdateLesson_WhenExists()
+        {
+            var guid = Guid.NewGuid();
+
+            var original = new LessonModel
+            {
+                LessonId = guid,
+                SubjectName = "Старый предмет",
+                TeacherName = "Иванов",
+                PairNumber = 1,
+                MenGroup = 240801
+            };
+
+            _context.Lessons.Add(original);
+            await _context.SaveChangesAsync();
+
+            var updated = new LessonModel
+            {
+                LessonId = guid,
+                SubjectName = "Новый предмет",
+                TeacherName = "Петров",
+                PairNumber = 3,
+                MenGroup = 240801
+            };
+
+            var result = await _repo.UpsertLessonsAsync(new[] { updated });
+
+            var fromDb = await _context.Lessons
+                .AsNoTracking()
+                .FirstOrDefaultAsync(x => x.LessonId == guid);
+
+            Assert.NotNull(fromDb);
+            Assert.AreEqual("Новый предмет", fromDb.SubjectName);
+            Assert.AreEqual("Петров", fromDb.TeacherName);
         }
     }
 }
