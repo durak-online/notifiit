@@ -8,19 +8,32 @@ using Telegram.Bot.Types.Enums;
 using Telegram.Bot.Types.ReplyMarkups;
 using NotiFIITBot.Consts;
 using NotiFIITBot.Domain;
-using NotiFIITBot.Database.Data;
 using NotiFIITBot.Repo;
+using System.Text.RegularExpressions;
 
 namespace NotiFIITBot.App;
 
-public class Bot : IDisposable
+public partial class Bot : IDisposable
 {
-    private TelegramBotClient bot;
-    private CancellationTokenSource cts;
-    private HttpClient httpClient;
+    private readonly TelegramBotClient bot;
+    private readonly CancellationTokenSource cts;
+    private readonly HttpClient httpClient;
 
-    public async Task Initialize(CancellationTokenSource cts)
+    private readonly HashSet<long> registeringUserIds = new();
+
+    // если навестись, то даже описание есть чего оно ищет
+    [GeneratedRegex(@"^(?:МЕН-)?(?<group>\d{6})-(?<subgroup>\d)$")]
+    private static partial Regex MENGroupRegex();
+
+    private readonly IUserRepository userRepository;
+    private readonly IScheduleRepository scheduleRepository;
+
+    public Bot(IUserRepository userRepository, IScheduleRepository scheduleRepository,
+        CancellationTokenSource cts)
     {
+        this.userRepository = userRepository;
+        this.scheduleRepository = scheduleRepository;
+
         try
         {
             this.cts = cts;
@@ -36,7 +49,7 @@ public class Bot : IDisposable
             bot = new TelegramBotClient(token: EnvReader.BotToken, httpClient: httpClient);
 
             using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
-            var info = await bot.GetMe(timeoutCts.Token);
+            var info = bot.GetMe(timeoutCts.Token).GetAwaiter().GetResult();
             Log.Information($"Bot {info.Username} started to work");
 
             var receiverOptions = new ReceiverOptions
@@ -107,23 +120,24 @@ public class Bot : IDisposable
         }
     }
 
+
     private async Task HandleCallbackQuery(CallbackQuery cbQuery)
     {
         string? sched = null;
-        
+
         switch (cbQuery.Data)
         {
             case nameof(SchedulePeriod.Today):
-                sched = await GetSchedForPeriodAsync(SchedulePeriod.Today);
+                sched = await GetSchedForPeriodAsync(cbQuery.From.Id, SchedulePeriod.Today);
                 break;
             case nameof(SchedulePeriod.Tomorrow):
-                sched = await GetSchedForPeriodAsync(SchedulePeriod.Tomorrow);
+                sched = await GetSchedForPeriodAsync(cbQuery.From.Id, SchedulePeriod.Tomorrow);
                 break;
             case nameof(SchedulePeriod.Week):
-                sched = await GetSchedForPeriodAsync(SchedulePeriod.Week);
+                sched = await GetSchedForPeriodAsync(cbQuery.From.Id, SchedulePeriod.Week);
                 break;
             case nameof(SchedulePeriod.TwoWeeks):
-                sched = await GetSchedForPeriodAsync(SchedulePeriod.TwoWeeks);
+                sched = await GetSchedForPeriodAsync(cbQuery.From.Id, SchedulePeriod.TwoWeeks);
                 break;
         }
 
@@ -167,13 +181,20 @@ public class Bot : IDisposable
 
     private async Task AnswerOnMessage(Message message)
     {
+        var registered = await CheckRegistration(message);
+        if (!registered)
+            return;
+
         switch (message.Text!.Split()[0])
         {
             case "/start":
                 await bot.SendMessage(
                     message.Chat.Id,
-                    "Добро пожаловать! Посмотри список доступных команд в <b>Меню</b>",
+                    "Добро пожаловать! Напиши свою группу в формате МЕН-группа-подгруппа для регистрации. " +
+                    "Например МЕН-240801-1",
                     ParseMode.Html);
+
+                registeringUserIds.Add(message.Chat.Id);
                 break;
 
             case "/sched":
@@ -181,7 +202,7 @@ public class Bot : IDisposable
                 break;
 
             case "/today":
-                var todaySched = await GetSchedForPeriodAsync(SchedulePeriod.Today);
+                var todaySched = await GetSchedForPeriodAsync(message.Chat.Id, SchedulePeriod.Today);
                 await bot.SendMessage(
                     message.Chat.Id,
                     todaySched
@@ -189,7 +210,7 @@ public class Bot : IDisposable
                 break;
 
             case "/tmrw":
-                var tomorrowSched = await GetSchedForPeriodAsync(SchedulePeriod.Tomorrow);
+                var tomorrowSched = await GetSchedForPeriodAsync(message.Chat.Id, SchedulePeriod.Tomorrow);
                 await bot.SendMessage(
                     message.Chat.Id,
                     tomorrowSched
@@ -197,7 +218,7 @@ public class Bot : IDisposable
                 break;
 
             case "/week":
-                var weekSched = await GetSchedForPeriodAsync(SchedulePeriod.Week);
+                var weekSched = await GetSchedForPeriodAsync(message.Chat.Id, SchedulePeriod.Week);
                 await bot.SendMessage(
                     message.Chat.Id,
                     weekSched
@@ -205,18 +226,19 @@ public class Bot : IDisposable
                 break;
 
             case "/2week":
-                var twoWeeksSched = await GetSchedForPeriodAsync(SchedulePeriod.TwoWeeks);
+                var twoWeeksSched = await GetSchedForPeriodAsync(message.Chat.Id, SchedulePeriod.TwoWeeks);
                 await bot.SendMessage(
                     message.Chat.Id,
                     twoWeeksSched
                 );
                 break;
 
+
             case "/slots":
                 await bot.SendMessage(message.Chat.Id, "Додепчик пошел");
                 await bot.SendDice(
                     message.Chat.Id,
-                    "🎰"
+                    DiceEmoji.Dice
                 );
                 break;
 
@@ -238,6 +260,31 @@ public class Bot : IDisposable
         }
     }
 
+    private async Task<bool> CheckRegistration(Message message)
+    {
+        if (registeringUserIds.Contains(message.Chat.Id))
+        {
+            if (MENGroupRegex().IsMatch(message.Text!))
+            {
+                await userRepository.AddUserAsync(message.Chat.Id);
+                registeringUserIds.Remove(message.Chat.Id);
+                await bot.SendMessage(
+                    message.Chat.Id,
+                    "Ты был успешно зарегистрирован! Посмотри список доступных команд в <b>Меню</b>",
+                    ParseMode.Html);
+            }
+            else
+                await bot.SendMessage(
+                    message.Chat.Id,
+                    "Неверный формат группы. Убедись, что прислал что-то похожее на МЕН-240801-1 и попробуй еще раз",
+                    ParseMode.Html);
+
+            return false;
+        }
+
+        return true;
+    }
+
     private async Task AskSchedule(Message message)
     {
         var schedInlineMarkup = new InlineKeyboardMarkup()
@@ -249,29 +296,22 @@ public class Bot : IDisposable
         await bot.SendMessage(message.Chat, "Выбери какое расписание тебе нужно:", replyMarkup: schedInlineMarkup);
     }
 
-    private async Task<string> GetSchedForPeriodAsync(SchedulePeriod period)
+    private async Task<string> GetSchedForPeriodAsync(long userId, SchedulePeriod period)
     {
-        try 
+        try
         {
-            var factory = new ScheduleDbContextFactory();
-            using var context = factory.CreateDbContext(null);
-            
-            var repo = new ScheduleRepository(context);
-            var service = new ScheduleService(repo);
+            var service = new ScheduleService(scheduleRepository);
 
-            // Заглушка пользователя
-            var userGroup = 240801; 
-            var userSubGroup = 1;
+            var user = await userRepository.GetUserAsync(userId);
+            var lessons = await service.GetFormattedScheduleAsync((int)user.GroupNumber, user.SubGroupNumber, period);
 
-            var lessons = await service.GetFormattedScheduleAsync(userGroup, userSubGroup, period);
-
-            if (lessons == null || !lessons.Any())
+            if (lessons == null || lessons.Count == 0)
             {
                 return "Пар нет 🎉 (или база пуста)";
             }
 
             var result = "";
-            
+
             foreach (var group in lessons.GroupBy(l => l.DayOfWeek))
                 result += Formatter.FormatLessons(group.ToList());
 
@@ -284,15 +324,14 @@ public class Bot : IDisposable
         }
     }
 
-    private bool IsAdmin(User user)
+    private static bool IsAdmin(User user)
     {
         return user.Id == EnvReader.CreatorId;
     }
 
     private async Task SendHelpMessage(Message message)
     {
-        var answer =
-            "Это бот для отправки расписания. Пока тут немного возможностей, но попробуй что-то из <b>Меню</b>";
+        var answer = "Это бот для отправки расписания. Пока тут немного возможностей, но попробуй что-то из <b>Меню</b>";
         await bot.SendMessage(message.Chat.Id, answer, ParseMode.Html);
     }
 

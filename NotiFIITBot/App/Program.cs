@@ -1,4 +1,5 @@
 ﻿using NotiFIITBot.Consts; // Нужно для EnvReader, если вы захотите проверить загрузку переменных явно
+using NotiFIITBot.Repo;
 using Serilog;
 
 namespace NotiFIITBot.App;
@@ -42,10 +43,10 @@ public class Program
                 Log.Error(ex, "[SEED] Error during database seeding. Continuing with existing data...");
             }
 
-            using var bot = new Bot();
+            // TODO: сделать DI
+            using var bot = new Bot(new UserRepository(), new ScheduleRepository(), cts);
             var notifier = new Notifier(bot);
 
-            await bot.Initialize(cts);
             await notifier.Start();
 
             await Task.Delay(Timeout.Infinite, cts.Token);
