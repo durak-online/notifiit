@@ -1,7 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using NotiFIITBot.Database.Data;
 using NotiFIITBot.Database.Models;
-using NotiFIITBot.Domain.Interfaces;
 
 namespace NotiFIITBot.Repo;
 
@@ -14,60 +13,102 @@ public class UserRepository : IUserRepository
         _contextFactory = new ScheduleDbContextFactory();
     }
 
-    // сохранение начальных настроек (Группа, Подгруппа, Уведы)
     public async Task UpdateUserPreferences(long chatId, int? group, int? subGroup, bool notificationsEnabled, int minutes)
     {
         using var context = _contextFactory.CreateDbContext(null);
 
         var user = await context.Users.FindAsync(chatId);
 
-        if (user == null)
+        if (user != null)
         {
-            user = new User { TelegramId = chatId };
-            context.Users.Add(user);
+            user.GroupNumber = group;
+            user.SubGroupNumber = subGroup;
+            user.NotificationsEnabled = notificationsEnabled;
+            user.GlobalNotificationMinutes = minutes;
+
+            await context.SaveChangesAsync();
         }
-
-        user.GroupNumber = group;
-        user.SubGroupNumber = subGroup;
-        user.NotificationsEnabled = notificationsEnabled;
-        user.GlobalNotificationMinutes = minutes;
-
-        await context.SaveChangesAsync();
+        else
+        {
+            //логи (если нужно)
+        }
     }
 
-    // Редактор уведомлений
-    public async Task SetLessonOverride(long chatId, Guid lessonId, bool? enableOverride, int? minutesOverride)
+    public async Task AddLessonOverrideAsync(long chatId, Guid lessonId, bool? enableOverride, int? minutesOverride)
     {
-        using var context = _contextFactory.CreateDbContext(null);
+        await using var context = _contextFactory.CreateDbContext(null);
+
+        var exists = await context.UserNotificationConfigs
+            .AnyAsync(c => c.TelegramId == chatId && c.LessonId == lessonId);
+
+        if (!exists)
+        {
+            var config = new UserNotificationConfig
+            {
+                TelegramId = chatId,
+                LessonId = lessonId,
+                IsNotificationEnabledOverride = enableOverride,
+                NotificationMinutesOverride = minutesOverride
+            };
+
+            context.UserNotificationConfigs.Add(config);
+            await context.SaveChangesAsync();
+        }
+    }
+
+    public async Task UpdateLessonOverrideAsync(long chatId, Guid lessonId, bool? enableOverride, int? minutesOverride)
+    {
+        await using var context = _contextFactory.CreateDbContext(null);
 
         var config = await context.UserNotificationConfigs
             .FirstOrDefaultAsync(c => c.TelegramId == chatId && c.LessonId == lessonId);
 
-        if (config == null)
+        if (config != null)
         {
-            config = new UserNotificationConfig
-            {
-                TelegramId = chatId,
-                LessonId = lessonId
-            };
-            context.UserNotificationConfigs.Add(config);
+            config.IsNotificationEnabledOverride = enableOverride;
+            config.NotificationMinutesOverride = minutesOverride;
+
+            await context.SaveChangesAsync();
         }
+    }
 
-        config.IsNotificationEnabledOverride = enableOverride;
-        config.NotificationMinutesOverride = minutesOverride;
+    public async Task DeleteLessonOverrideAsync(long chatId, Guid lessonId)
+    {
+        await using var context = _contextFactory.CreateDbContext(null);
 
-        if (enableOverride == null && minutesOverride == null)
+        var config = await context.UserNotificationConfigs
+            .FirstOrDefaultAsync(c => c.TelegramId == chatId && c.LessonId == lessonId);
+
+        if (config != null)
         {
             context.UserNotificationConfigs.Remove(config);
+            await context.SaveChangesAsync();
         }
-
-        await context.SaveChangesAsync();
     }
 
     public async Task<User?> GetUserAsync(long chatId)
     {
         await using var context = _contextFactory.CreateDbContext(null);
         return await context.Users.FindAsync(chatId);
+    }
+    
+    public async Task AddUserAsync(long chatId)
+    {
+        await using var context = _contextFactory.CreateDbContext(null);
+        var exists = await context.Users.AnyAsync(u => u.TelegramId == chatId);
+
+        if (!exists)
+        {
+            var newUser = new User
+            {
+                TelegramId = chatId,
+                NotificationsEnabled = true,
+                GlobalNotificationMinutes = 15
+            };
+
+            context.Users.Add(newUser);
+            await context.SaveChangesAsync();
+        }
     }
     
     public async Task UpdateUserAsync(User user)
