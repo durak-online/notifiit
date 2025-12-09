@@ -66,7 +66,37 @@ public class UserRepository : IUserRepository
 
     public async Task<User?> GetUserAsync(long chatId)
     {
-        using var context = _contextFactory.CreateDbContext(null);
+        await using var context = _contextFactory.CreateDbContext(null);
         return await context.Users.FindAsync(chatId);
+    }
+    
+    public async Task UpdateUserAsync(User user)
+    {
+        await using var context = _contextFactory.CreateDbContext(null);
+        var existingUser = await context.Users.FindAsync(user.TelegramId);
+        if (existingUser != null)
+        {
+            existingUser.GroupNumber = user.GroupNumber;
+            existingUser.SubGroupNumber = user.SubGroupNumber;
+            existingUser.NotificationsEnabled = user.NotificationsEnabled;
+            existingUser.GlobalNotificationMinutes = user.GlobalNotificationMinutes;
+
+            await context.SaveChangesAsync();
+        }
+        else
+        {
+            // по хорошему бы тут залогировать типо пользователя с таким айди не существует
+        }
+    }
+    
+    public async Task DeleteUserAsync(long chatId)
+    {
+        await using var context = _contextFactory.CreateDbContext(null);
+        var user = await context.Users.FindAsync(chatId);
+        if (user != null)
+        {
+            context.Users.Remove(user);
+            await context.SaveChangesAsync();
+        }
     }
 }

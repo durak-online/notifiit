@@ -9,4 +9,8 @@ public interface IUserRepository
     Task SetLessonOverride(long chatId, Guid lessonId, bool? enableOverride, int? minutesOverride);
 
     Task<User?> GetUserAsync(long chatId);
+    
+    Task DeleteUserAsync(long chatId);
+    
+    Task UpdateUserAsync(User user);
 }
