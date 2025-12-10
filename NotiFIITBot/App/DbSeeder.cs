@@ -105,7 +105,7 @@ public class DbSeeder
         Log.Information($"[SEED] Processing {allLessons.Count} raw lessons...");
 
         var lessonsSubNormalized = LessonProcessor.NormalizeSubgroups(allLessons);
-        var finalLessons = LessonProcessor.MergeByParity(lessonsSubNormalized).ToList();
+        var finalLessons = LessonProcessor.MergeByEvenness(lessonsSubNormalized).ToList();
         LessonProcessor.AssignStableIds(finalLessons);
         
         var uniqueLessons = finalLessons.DistinctBy(l => l.LessonId).ToList();

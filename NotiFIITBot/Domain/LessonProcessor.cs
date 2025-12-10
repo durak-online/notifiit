@@ -49,7 +49,7 @@ public static class LessonProcessor
     /// <summary>
     /// Шаг 2. Если пара (уже с subGroup 0, 1 или 2) проходит и по четным, и по нечетным -> Evenness = Always.
     /// </summary>
-    public static IEnumerable<Lesson> MergeByParity(IEnumerable<Lesson> lessons)
+    public static IEnumerable<Lesson> MergeByEvenness(IEnumerable<Lesson> lessons)
     {
         var groups = lessons.GroupBy(l =>
             $"{l.DayOfWeek}-{l.SubjectName}-{l.TeacherName}-{l.ClassRoom}-{l.PairNumber}-{l.SubGroup}-{l.MenGroup}");

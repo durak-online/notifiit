@@ -5,10 +5,11 @@ namespace NotiFIITBot.Domain;
 
 public static class Formatter
 {
-    public static string FormatLessons(List<Lesson> lessons)
+    public static string FormatLessons(DateOnly date, List<Lesson> lessons)
     {
         var strBuilder = new StringBuilder();
-        strBuilder.Append($"{DayOfWeekInRus(lessons[0].DayOfWeek)}:\n\n");
+        strBuilder.Append($"<b>{DayOfWeekInRus(date.DayOfWeek)} ({date:dd.MM}):</b>\n\n");
+        
         foreach (var lesson in lessons)
         {
             strBuilder.Append(FormatLesson(lesson));

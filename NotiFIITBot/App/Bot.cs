@@ -150,7 +150,8 @@ public partial class Bot : IDisposable
         await bot.EditMessageText(
             cbQuery.Message!.Chat,
             cbQuery.Message.Id,
-            sched
+            sched,
+            ParseMode.Html
         );
         await bot.AnswerCallbackQuery(cbQuery.Id);
     }
@@ -216,7 +217,8 @@ public partial class Bot : IDisposable
                 var todaySched = await GetSchedForPeriodAsync(message.Chat.Id, SchedulePeriod.Today);
                 await bot.SendMessage(
                     message.Chat.Id,
-                    todaySched
+                    todaySched,
+                    ParseMode.Html
                 );
                 break;
 
@@ -224,7 +226,8 @@ public partial class Bot : IDisposable
                 var tomorrowSched = await GetSchedForPeriodAsync(message.Chat.Id, SchedulePeriod.Tomorrow);
                 await bot.SendMessage(
                     message.Chat.Id,
-                    tomorrowSched
+                    tomorrowSched,
+                    ParseMode.Html
                 );
                 break;
 
@@ -232,7 +235,8 @@ public partial class Bot : IDisposable
                 var weekSched = await GetSchedForPeriodAsync(message.Chat.Id, SchedulePeriod.Week);
                 await bot.SendMessage(
                     message.Chat.Id,
-                    weekSched
+                    weekSched,
+                    ParseMode.Html
                 );
                 break;
 
@@ -240,7 +244,8 @@ public partial class Bot : IDisposable
                 var twoWeeksSched = await GetSchedForPeriodAsync(message.Chat.Id, SchedulePeriod.TwoWeeks);
                 await bot.SendMessage(
                     message.Chat.Id,
-                    twoWeeksSched
+                    twoWeeksSched,
+                    ParseMode.Html
                 );
                 break;
             #endregion
@@ -362,20 +367,20 @@ public partial class Bot : IDisposable
             if (user == null)
                 return "Ты еще не зарегестрирован в базе данных";
 
-
-            var lessons = await service.GetFormattedScheduleAsync(user.MenGroup, user.SubGroup, period);
-
-            if (lessons == null || lessons.Count == 0)
+            var scheduleDays = await service.GetFormattedScheduleAsync(user.MenGroup, user.SubGroup, period);
+            if (scheduleDays == null || scheduleDays.Count == 0)
             {
                 return $"Пар для группы МЕН-{user.MenGroup}-{user.SubGroup} нет 🎉";
             }
 
-            var result = "";
+            var result = new System.Text.StringBuilder();
 
-            foreach (var group in lessons.GroupBy(l => l.DayOfWeek))
-                result += Formatter.FormatLessons(group.ToList());
+            foreach (var (date, lessons) in scheduleDays)
+            {
+                result.Append(Formatter.FormatLessons(date, lessons));
+            }
 
-            return result;
+            return result.ToString();
         }
         catch (Exception ex)
         {
