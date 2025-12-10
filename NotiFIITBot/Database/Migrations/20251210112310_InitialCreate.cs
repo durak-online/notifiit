@@ -17,11 +17,12 @@ namespace NotiFIITBot.Migrations
                 columns: table => new
                 {
                     lesson_id = table.Column<Guid>(type: "uuid", nullable: false),
-                    men_group = table.Column<int>(type: "integer", nullable: true),
+                    men_group = table.Column<int>(type: "integer", nullable: false),
                     sub_group = table.Column<int>(type: "integer", nullable: true),
                     evenness = table.Column<int>(type: "integer", nullable: false),
                     day_of_week = table.Column<int>(type: "integer", nullable: false),
                     pair_number = table.Column<int>(type: "integer", nullable: false),
+                    start_time = table.Column<TimeOnly>(type: "time without time zone", nullable: false),
                     subject_name = table.Column<string>(type: "character varying(255)", maxLength: 255, nullable: true),
                     teacher_name = table.Column<string>(type: "character varying(255)", maxLength: 255, nullable: true),
                     classroom_number = table.Column<string>(type: "text", nullable: true),
@@ -38,8 +39,8 @@ namespace NotiFIITBot.Migrations
                 {
                     telegram_id = table.Column<long>(type: "bigint", nullable: false)
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
-                    group_number = table.Column<int>(type: "integer", nullable: true),
-                    subgroup_number = table.Column<int>(type: "integer", nullable: true),
+                    men_group = table.Column<int>(type: "integer", nullable: false),
+                    sub_group = table.Column<int>(type: "integer", nullable: true),
                     notifications_enabled = table.Column<bool>(type: "boolean", nullable: false),
                     global_notification_minutes = table.Column<int>(type: "integer", nullable: false)
                 },
@@ -49,15 +50,15 @@ namespace NotiFIITBot.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "week_parity_configs",
+                name: "week_evenness_configs",
                 columns: table => new
                 {
-                    parity = table.Column<int>(type: "integer", nullable: false),
+                    evenness = table.Column<int>(type: "integer", nullable: false),
                     first_monday = table.Column<DateOnly>(type: "date", nullable: false)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_week_parity_configs", x => x.parity);
+                    table.PrimaryKey("PK_week_evenness_configs", x => x.evenness);
                 });
 
             migrationBuilder.CreateTable(
@@ -99,7 +100,7 @@ namespace NotiFIITBot.Migrations
                 name: "user_notification_config");
 
             migrationBuilder.DropTable(
-                name: "week_parity_configs");
+                name: "week_evenness_configs");
 
             migrationBuilder.DropTable(
                 name: "lessons");

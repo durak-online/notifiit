@@ -6,17 +6,17 @@ namespace NotiFIITBot.Database.Data;
 
 public class ScheduleDbContextFactory : IDesignTimeDbContextFactory<ScheduleDbContext>
 {
+    public static string ConnectionString => 
+        $"Host=localhost;" +
+        $"Port=5434;" +
+        $"Database={EnvReader.PostgresDbName};" + 
+        $"Username={EnvReader.PostgresUser};" + 
+        $"Password={EnvReader.PostgresPassword}";
+    
     public ScheduleDbContext CreateDbContext(string[] args)
     {
-        var connectionString =
-            $"Host=localhost;" +
-            $"Port=5434;" +
-            $"Database={EnvReader.PostgresDbName};" + 
-            $"Username={EnvReader.PostgresUser};" + 
-            $"Password={EnvReader.PostgresPassword}";
-
         var optionsBuilder = new DbContextOptionsBuilder<ScheduleDbContext>();
-        optionsBuilder.UseNpgsql(connectionString);
+        optionsBuilder.UseNpgsql(ConnectionString);
 
         return new ScheduleDbContext(optionsBuilder.Options);
     }

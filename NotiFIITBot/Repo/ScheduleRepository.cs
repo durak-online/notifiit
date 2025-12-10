@@ -8,15 +8,17 @@ namespace NotiFIITBot.Repo
 {
     public class ScheduleRepository : IScheduleRepository
     {
-        private readonly ScheduleDbContext _context;
+        private readonly ScheduleDbContextFactory _contextFactory;
 
-        public ScheduleRepository(ScheduleDbContext context)
+        public ScheduleRepository()
         {
-            _context = context ?? throw new ArgumentNullException(nameof(context));
+            _contextFactory = new ScheduleDbContextFactory();
         }
 
         public async Task<List<LessonModel>> UpsertLessonsAsync(IEnumerable<LessonModel> lessonModels, CancellationToken ct = default)
         {
+            using var context = _contextFactory.CreateDbContext(null);
+
             var result = new List<LessonModel>();
 
             foreach (var model in lessonModels)
@@ -24,11 +26,11 @@ namespace NotiFIITBot.Repo
                 if (model.LessonId == Guid.Empty)
                     continue; 
 
-                var existing = await _context.Lessons.FindAsync(new object[] { model.LessonId }, ct);
+                var existing = await context.Lessons.FindAsync(new object[] { model.LessonId }, ct);
 
                 if (existing == null)
                 {
-                    await _context.Lessons.AddAsync(model, ct);
+                    await context.Lessons.AddAsync(model, ct);
                     result.Add(model);
                 }
                 else
@@ -40,16 +42,15 @@ namespace NotiFIITBot.Repo
                     existing.ClassroomNumber = model.ClassroomNumber;
                     existing.AuditoryLocation = model.AuditoryLocation;
                     existing.PairNumber = model.PairNumber;
+                    existing.StartTime = model.StartTime;
                     existing.DayOfWeek = model.DayOfWeek;
                     existing.Evenness = model.Evenness;
                     
-                    // Время НЕ трогаем, так как модель старая
-
                     result.Add(existing);
                 }
             }
 
-            await _context.SaveChangesAsync(ct);
+            await context.SaveChangesAsync(ct);
             return result;
         }
 
@@ -60,10 +61,12 @@ namespace NotiFIITBot.Repo
             DateTime? now = null,
             CancellationToken ct = default)
         {
+            using var context = _contextFactory.CreateDbContext(null);
+
             now ??= DateTime.Now;
 
             // Фильтр по группе
-            var q = _context.Lessons.AsNoTracking()
+            var q = context.Lessons.AsNoTracking()
                 .Where(l => l.MenGroup == groupNumber);
 
             if (subGroup.HasValue)

@@ -1,4 +1,5 @@
 ﻿using NotiFIITBot.Consts; // Нужно для EnvReader, если вы захотите проверить загрузку переменных явно
+using NotiFIITBot.Repo;
 using Serilog;
 
 namespace NotiFIITBot.App;
@@ -17,7 +18,7 @@ public class Program
             .WriteTo.File($"logs/bot-{DateTime.Now:yyyy-MM-dd}.log")
             .CreateLogger();
 
-        Log.Information("Started program");
+        Log.Information("[APP] Started program");
 
         Console.CancelKeyPress += OnCancelKeyPress;
         AppDomain.CurrentDomain.ProcessExit += OnProcessExit;
@@ -42,17 +43,17 @@ public class Program
                 Log.Error(ex, "[SEED] Error during database seeding. Continuing with existing data...");
             }
 
-            using var bot = new Bot();
+            // TODO: сделать DI
+            using var bot = new Bot(new UserRepository(), new ScheduleRepository(), cts);
             var notifier = new Notifier(bot);
 
-            await bot.Initialize(cts);
             await notifier.Start();
 
             await Task.Delay(Timeout.Infinite, cts.Token);
         }
         catch (TaskCanceledException)
         {
-            Log.Information("Bot stopped gracefully");
+            Log.Information("[BOT] Bot stopped gracefully");
         }
         catch (Exception ex)
         {
@@ -67,13 +68,13 @@ public class Program
     private static void OnCancelKeyPress(object? sender, ConsoleCancelEventArgs e)
     {
         e.Cancel = true;
-        Log.Information("Received Ctrl+C, stopping bot...");
+        Log.Information("[APP] Received Ctrl+C, stopping bot...");
         cts.Cancel();
     }
 
     private static void OnProcessExit(object? sender, EventArgs e)
     {
-        Log.Information("Process exit requested, stopping bot...");
+        Log.Information("[BOT] Process exit requested, stopping bot...");
         cts.Cancel();
     }
 }

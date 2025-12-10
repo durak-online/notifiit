@@ -44,13 +44,17 @@ namespace NotiFIITBot.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("evenness");
 
-                    b.Property<int?>("MenGroup")
+                    b.Property<int>("MenGroup")
                         .HasColumnType("integer")
                         .HasColumnName("men_group");
 
                     b.Property<int>("PairNumber")
                         .HasColumnType("integer")
                         .HasColumnName("pair_number");
+
+                    b.Property<TimeOnly>("StartTime")
+                        .HasColumnType("time without time zone")
+                        .HasColumnName("start_time");
 
                     b.Property<int?>("SubGroup")
                         .HasColumnType("integer")
@@ -84,17 +88,17 @@ namespace NotiFIITBot.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("global_notification_minutes");
 
-                    b.Property<int?>("GroupNumber")
+                    b.Property<int>("MenGroup")
                         .HasColumnType("integer")
-                        .HasColumnName("group_number");
+                        .HasColumnName("men_group");
 
                     b.Property<bool>("NotificationsEnabled")
                         .HasColumnType("boolean")
                         .HasColumnName("notifications_enabled");
 
-                    b.Property<int?>("SubGroupNumber")
+                    b.Property<int?>("SubGroup")
                         .HasColumnType("integer")
-                        .HasColumnName("subgroup_number");
+                        .HasColumnName("sub_group");
 
                     b.HasKey("TelegramId");
 
@@ -126,19 +130,19 @@ namespace NotiFIITBot.Migrations
                     b.ToTable("user_notification_config");
                 });
 
-            modelBuilder.Entity("NotiFIITBot.Database.Models.WeekParityConfig", b =>
+            modelBuilder.Entity("NotiFIITBot.Database.Models.WeekEvennessConfig", b =>
                 {
-                    b.Property<int>("Parity")
+                    b.Property<int>("Evenness")
                         .HasColumnType("integer")
-                        .HasColumnName("parity");
+                        .HasColumnName("evenness");
 
                     b.Property<DateOnly>("FirstMonday")
                         .HasColumnType("date")
                         .HasColumnName("first_monday");
 
-                    b.HasKey("Parity");
+                    b.HasKey("Evenness");
 
-                    b.ToTable("week_parity_configs");
+                    b.ToTable("week_evenness_configs");
                 });
 
             modelBuilder.Entity("NotiFIITBot.Database.Models.UserNotificationConfig", b =>

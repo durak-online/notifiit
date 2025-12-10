@@ -10,11 +10,11 @@ public class User
     [Column("telegram_id")]
     public long TelegramId { get; set; } // id тг чата
 
-    [Column("group_number")]
-    public int? GroupNumber { get; set; } // номер группы
+    [Column("men_group")]
+    public int MenGroup { get; set; } // номер группы
 
-    [Column("subgroup_number")]
-    public int? SubGroupNumber { get; set; } // номер подгруппы
+    [Column("sub_group")]
+    public int? SubGroup { get; set; } // номер подгруппы
 
     [Column("notifications_enabled")]
     public bool NotificationsEnabled { get; set; } = true; // включить/выключить ВСЕ уведы
