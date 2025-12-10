@@ -34,7 +34,7 @@ public class ScheduleService
                 end: end,
                 auditoryLocation: m.AuditoryLocation,
                 subGroup: m.SubGroup ?? 0,
-                menGroup: m.MenGroup ?? 0,
+                menGroup: m.MenGroup,
                 evennessOfWeek: m.Evenness,
                 dayOfWeek: m.DayOfWeek
             )

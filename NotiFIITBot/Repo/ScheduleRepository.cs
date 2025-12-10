@@ -42,11 +42,10 @@ namespace NotiFIITBot.Repo
                     existing.ClassroomNumber = model.ClassroomNumber;
                     existing.AuditoryLocation = model.AuditoryLocation;
                     existing.PairNumber = model.PairNumber;
+                    existing.StartTime = model.StartTime;
                     existing.DayOfWeek = model.DayOfWeek;
                     existing.Evenness = model.Evenness;
                     
-                    // Время НЕ трогаем, так как модель старая
-
                     result.Add(existing);
                 }
             }

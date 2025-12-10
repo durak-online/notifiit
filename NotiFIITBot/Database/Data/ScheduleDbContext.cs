@@ -13,14 +13,14 @@ namespace NotiFIITBot.Database.Data
         public DbSet<User> Users { get; set; }
         public DbSet<LessonModel> Lessons { get; set; }
         public DbSet<UserNotificationConfig> UserNotificationConfigs { get; set; }
-        public DbSet<WeekParityConfig> WeekParityConfigs { get; set; }
+        public DbSet<WeekEvennessConfig> WeekEvennessConfigs { get; set; }
 
         // Настройка моделей 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
 
-            modelBuilder.Entity<WeekParityConfig>()
-                .HasKey(e => e.Parity);
+            modelBuilder.Entity<WeekEvennessConfig>()
+                .HasKey(e => e.Evenness);
 
             // Так как у NotificationConfig.cs нет [Key], мы обязаны определить
             // "составной" ключ здесь:

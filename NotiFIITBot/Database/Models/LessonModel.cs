@@ -13,7 +13,7 @@ public class LessonModel
     public Guid? LessonId { get; set; }
     
     [Column("men_group")]
-    public int? MenGroup { get; set; }
+    public int MenGroup { get; set; }
 
     [Column("sub_group")]
     public int? SubGroup { get; set; } // 0, 1 или 2
@@ -26,6 +26,9 @@ public class LessonModel
     
     [Column("pair_number")]
     public int PairNumber { get; set; }
+    
+    [Column("start_time")]
+    public TimeOnly StartTime { get; set; }
 
 
     [Column("subject_name")]

@@ -16,7 +16,7 @@ public interface IUserRepository
     
     Task DeleteUserAsync(long chatId);
     
-    Task AddUserAsync(long chatId);
+    Task AddUserAsync(long chatId, int group, int subGroup);
     
     Task UpdateUserAsync(User user);
 }

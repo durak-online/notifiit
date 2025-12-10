@@ -92,7 +92,7 @@ public class UserRepository : IUserRepository
         return await context.Users.FindAsync(chatId);
     }
     
-    public async Task AddUserAsync(long chatId)
+    public async Task AddUserAsync(long chatId, int group, int subGroup)
     {
         await using var context = _contextFactory.CreateDbContext(null);
         var exists = await context.Users.AnyAsync(u => u.TelegramId == chatId);
@@ -102,6 +102,8 @@ public class UserRepository : IUserRepository
             var newUser = new User
             {
                 TelegramId = chatId,
+                GroupNumber = group,
+                SubGroupNumber = subGroup,
                 NotificationsEnabled = true,
                 GlobalNotificationMinutes = 15
             };

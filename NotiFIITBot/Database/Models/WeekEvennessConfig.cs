@@ -4,12 +4,12 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace NotiFIITBot.Database.Models;
 
-[Table("week_parity_configs")]
-public class WeekParityConfig
+[Table("week_evenness_configs")]
+public class WeekEvennessConfig
 {
     [Key]
-    [Column("parity")]
-    public Evenness Parity { get; set; } // "четная" или "нечетная" или "всегда"
+    [Column("evenness")]
+    public Evenness Evenness { get; set; } // "четная" или "нечетная" или "всегда"
 
     [Column("first_monday")]
     public DateOnly FirstMonday { get; set; } // "первый понедельник"

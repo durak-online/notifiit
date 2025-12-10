@@ -11,9 +11,7 @@ namespace NotiFIITBot.App;
 
 public class DbSeeder
 {
-    private static string ConnectionString => 
-        $"Host=localhost;Port=5434;Database={EnvReader.PostgresDbName};Username={EnvReader.PostgresUser};Password={EnvReader.PostgresPassword}";
-    
+    private readonly ScheduleDbContextFactory _contextFactory = new();
 
     public async Task SeedAsync(bool useTable, bool useApi, int[]? targetGroups = null)
     {
@@ -119,12 +117,7 @@ public class DbSeeder
     
     private async Task ClearExistingLessonsAsync(int[]? targetGroups)
     {
-        var options = new DbContextOptionsBuilder<ScheduleDbContext>()
-            .UseNpgsql(ConnectionString)
-            .Options;
-
-        await using var context = new ScheduleDbContext(options);
-
+        await using var context = _contextFactory.CreateDbContext(null);
 
         if (targetGroups == null || targetGroups.Length == 0)
         {
@@ -136,7 +129,7 @@ public class DbSeeder
         {
             Log.Information($"[SEED-CLEAN] Cleaning lessons for groups: {string.Join(", ", targetGroups)}...");
             await context.Set<LessonModel>()
-                .Where(l => l.MenGroup.HasValue && targetGroups.Contains(l.MenGroup.Value))
+                .Where(l => l.MenGroup == 0 && targetGroups.Contains(l.MenGroup))
                 .ExecuteDeleteAsync();
             Log.Information("[SEED-CLEAN] Targeted cleanup finished.");
         }
@@ -144,8 +137,6 @@ public class DbSeeder
 
     private async Task SaveBatchedSafeAsync(List<Lesson> lessons)
     {
-        var options = new DbContextOptionsBuilder<ScheduleDbContext>().UseNpgsql(ConnectionString).Options;
-
         foreach (var batch in lessons.Chunk(100))
         {
             try
@@ -153,7 +144,7 @@ public class DbSeeder
                 var dbModels = batch.Select(l => new LessonModel
                 {
                     LessonId = l.LessonId ?? Guid.NewGuid(),
-                    MenGroup = l.MenGroup,
+                    MenGroup = l.MenGroup ?? 0,
                     SubGroup = l.SubGroup,
                     SubjectName = l.SubjectName,
                     TeacherName = l.TeacherName,
@@ -164,8 +155,8 @@ public class DbSeeder
                     Evenness = l.EvennessOfWeek
                 }).ToList();
 
-                await using var context = new ScheduleDbContext(options);
-                var repo = new ScheduleRepository(context);
+                await using var context = _contextFactory.CreateDbContext(null);
+                var repo = new ScheduleRepository();
             
                 await repo.UpsertLessonsAsync(dbModels);
                 await context.SaveChangesAsync();
