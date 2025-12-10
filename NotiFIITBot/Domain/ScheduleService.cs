@@ -22,7 +22,7 @@ public class ScheduleService
 
         var lessons = models.Select(m =>
         {
-            var start = GetStandardStartTime(m.PairNumber);
+            var start = m.StartTime;
             var end = start.AddMinutes(90);
 
             return new Lesson(
@@ -46,20 +46,5 @@ public class ScheduleService
         var mergedLessons = LessonProcessor.MergeByParity(lessons);
 
         return mergedLessons.OrderBy(l => l.DayOfWeek).ThenBy(l => l.PairNumber).ToList();
-    }
-    
-    private static TimeOnly GetStandardStartTime(int pairNumber)
-    {
-        return pairNumber switch
-        {
-            1 => new TimeOnly(9, 0),
-            2 => new TimeOnly(10, 40),
-            3 => new TimeOnly(12, 20),
-            4 => new TimeOnly(14, 30),
-            5 => new TimeOnly(16, 10),
-            6 => new TimeOnly(17, 50),
-            7 => new TimeOnly(19, 30),
-            _ => TimeOnly.MinValue 
-        };
     }
 }

@@ -13,7 +13,7 @@ public class UserRepository : IUserRepository
         _contextFactory = new ScheduleDbContextFactory();
     }
 
-    public async Task UpdateUserPreferences(long chatId, int? group, int? subGroup, bool notificationsEnabled, int minutes)
+    public async Task UpdateUserPreferences(long chatId, int group, int? subGroup, bool notificationsEnabled, int minutes)
     {
         using var context = _contextFactory.CreateDbContext(null);
 
@@ -21,8 +21,8 @@ public class UserRepository : IUserRepository
 
         if (user != null)
         {
-            user.GroupNumber = group;
-            user.SubGroupNumber = subGroup;
+            user.MenGroup = group;
+            user.SubGroup = subGroup;
             user.NotificationsEnabled = notificationsEnabled;
             user.GlobalNotificationMinutes = minutes;
 
@@ -86,7 +86,7 @@ public class UserRepository : IUserRepository
         }
     }
 
-    public async Task<User?> GetUserAsync(long chatId)
+    public async Task<User?> FindUserAsync(long chatId)
     {
         await using var context = _contextFactory.CreateDbContext(null);
         return await context.Users.FindAsync(chatId);
@@ -102,8 +102,8 @@ public class UserRepository : IUserRepository
             var newUser = new User
             {
                 TelegramId = chatId,
-                GroupNumber = group,
-                SubGroupNumber = subGroup,
+                MenGroup = group,
+                SubGroup = subGroup,
                 NotificationsEnabled = true,
                 GlobalNotificationMinutes = 15
             };
@@ -119,8 +119,8 @@ public class UserRepository : IUserRepository
         var existingUser = await context.Users.FindAsync(user.TelegramId);
         if (existingUser != null)
         {
-            existingUser.GroupNumber = user.GroupNumber;
-            existingUser.SubGroupNumber = user.SubGroupNumber;
+            existingUser.MenGroup = user.MenGroup;
+            existingUser.SubGroup = user.SubGroup;
             existingUser.NotificationsEnabled = user.NotificationsEnabled;
             existingUser.GlobalNotificationMinutes = user.GlobalNotificationMinutes;
 

@@ -42,7 +42,7 @@ public partial class Bot : IDisposable
             var httpClient = new HttpClient(new HttpClientHandler()
             {
                 Proxy = proxy,
-                UseProxy = true
+                UseProxy = false
             });
             this.httpClient = httpClient;
 
@@ -181,8 +181,8 @@ public partial class Bot : IDisposable
 
     private async Task AnswerOnMessage(Message message)
     {
-        var registered = await CheckRegistration(message);
-        if (!registered)
+        var isRegistering = await CheckRegistration(message);
+        if (!isRegistering)
             return;
 
         switch (message.Text!.Split()[0])
@@ -264,14 +264,21 @@ public partial class Bot : IDisposable
     {
         if (registeringUserIds.Contains(message.Chat.Id))
         {
-            if (MENGroupRegex().IsMatch(message.Text!))
+            var match = MENGroupRegex().Match(message.Text!);
+
+            if (match.Success)
             {
-                await userRepository.AddUserAsync(message.Chat.Id);
-                registeringUserIds.Remove(message.Chat.Id);
-                await bot.SendMessage(
-                    message.Chat.Id,
-                    "Ты был успешно зарегистрирован! Посмотри список доступных команд в <b>Меню</b>",
-                    ParseMode.Html);
+                if (int.TryParse(match.Groups["group"].Value, out var groupNum) &&
+                    int.TryParse(match.Groups["subgroup"].Value, out var subGroupNum))
+                {
+                    await userRepository.AddUserAsync(message.Chat.Id, groupNum, subGroupNum);
+
+                    registeringUserIds.Remove(message.Chat.Id);
+                    await bot.SendMessage(
+                        message.Chat.Id,
+                        "Ты был успешно зарегистрирован! Посмотри список доступных команд в <b>Меню</b>",
+                        ParseMode.Html);
+                }
             }
             else
                 await bot.SendMessage(
@@ -302,8 +309,8 @@ public partial class Bot : IDisposable
         {
             var service = new ScheduleService(scheduleRepository);
 
-            var user = await userRepository.GetUserAsync(userId);
-            var lessons = await service.GetFormattedScheduleAsync((int)user.GroupNumber, user.SubGroupNumber, period);
+            var user = await userRepository.FindUserAsync(userId);
+            var lessons = await service.GetFormattedScheduleAsync(user.MenGroup, user.SubGroup, period);
 
             if (lessons == null || lessons.Count == 0)
             {

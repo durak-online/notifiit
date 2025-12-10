@@ -88,17 +88,17 @@ namespace NotiFIITBot.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("global_notification_minutes");
 
-                    b.Property<int?>("GroupNumber")
+                    b.Property<int>("MenGroup")
                         .HasColumnType("integer")
-                        .HasColumnName("group_number");
+                        .HasColumnName("men_group");
 
                     b.Property<bool>("NotificationsEnabled")
                         .HasColumnType("boolean")
                         .HasColumnName("notifications_enabled");
 
-                    b.Property<int?>("SubGroupNumber")
+                    b.Property<int?>("SubGroup")
                         .HasColumnType("integer")
-                        .HasColumnName("subgroup_number");
+                        .HasColumnName("sub_group");
 
                     b.HasKey("TelegramId");
 

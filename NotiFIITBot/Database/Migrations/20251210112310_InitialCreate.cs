@@ -39,8 +39,8 @@ namespace NotiFIITBot.Migrations
                 {
                     telegram_id = table.Column<long>(type: "bigint", nullable: false)
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
-                    group_number = table.Column<int>(type: "integer", nullable: true),
-                    subgroup_number = table.Column<int>(type: "integer", nullable: true),
+                    men_group = table.Column<int>(type: "integer", nullable: false),
+                    sub_group = table.Column<int>(type: "integer", nullable: true),
                     notifications_enabled = table.Column<bool>(type: "boolean", nullable: false),
                     global_notification_minutes = table.Column<int>(type: "integer", nullable: false)
                 },

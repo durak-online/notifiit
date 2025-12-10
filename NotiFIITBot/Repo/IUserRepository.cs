@@ -4,7 +4,7 @@ namespace NotiFIITBot.Repo;
 
 public interface IUserRepository
 {
-    Task UpdateUserPreferences(long chatId, int? group, int? subGroup, bool notificationsEnabled, int minutes);
+    Task UpdateUserPreferences(long chatId, int group, int? subGroup, bool notificationsEnabled, int minutes);
 
     Task AddLessonOverrideAsync(long chatId, Guid lessonId, bool? enableOverride, int? minutesOverride);
 
@@ -12,7 +12,7 @@ public interface IUserRepository
 
     Task DeleteLessonOverrideAsync(long chatId, Guid lessonId);
 
-    Task<User?> GetUserAsync(long chatId);
+    Task<User?> FindUserAsync(long chatId);
     
     Task DeleteUserAsync(long chatId);
     

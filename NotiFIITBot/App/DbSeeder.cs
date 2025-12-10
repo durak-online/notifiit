@@ -151,6 +151,7 @@ public class DbSeeder
                     ClassroomNumber = l.ClassRoom,
                     AuditoryLocation = l.AuditoryLocation,
                     PairNumber = l.PairNumber ?? 0,
+                    StartTime = l.Begin ?? TimeOnly.MinValue,
                     DayOfWeek = l.DayOfWeek ?? DayOfWeek.Monday,
                     Evenness = l.EvennessOfWeek
                 }).ToList();
