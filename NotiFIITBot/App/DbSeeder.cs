@@ -156,11 +156,8 @@ public class DbSeeder
                     Evenness = l.EvennessOfWeek
                 }).ToList();
 
-                await using var context = _contextFactory.CreateDbContext(null);
                 var repo = new ScheduleRepository();
-            
                 await repo.UpsertLessonsAsync(dbModels);
-                await context.SaveChangesAsync();
             }
             catch (Exception ex)
             {

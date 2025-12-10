@@ -18,7 +18,7 @@ public class Program
             .WriteTo.File($"logs/bot-{DateTime.Now:yyyy-MM-dd}.log")
             .CreateLogger();
 
-        Log.Information("Started program");
+        Log.Information("[APP] Started program");
 
         Console.CancelKeyPress += OnCancelKeyPress;
         AppDomain.CurrentDomain.ProcessExit += OnProcessExit;
@@ -53,7 +53,7 @@ public class Program
         }
         catch (TaskCanceledException)
         {
-            Log.Information("Bot stopped gracefully");
+            Log.Information("[BOT] Bot stopped gracefully");
         }
         catch (Exception ex)
         {
@@ -68,13 +68,13 @@ public class Program
     private static void OnCancelKeyPress(object? sender, ConsoleCancelEventArgs e)
     {
         e.Cancel = true;
-        Log.Information("Received Ctrl+C, stopping bot...");
+        Log.Information("[APP] Received Ctrl+C, stopping bot...");
         cts.Cancel();
     }
 
     private static void OnProcessExit(object? sender, EventArgs e)
     {
-        Log.Information("Process exit requested, stopping bot...");
+        Log.Information("[BOT] Process exit requested, stopping bot...");
         cts.Cancel();
     }
 }
