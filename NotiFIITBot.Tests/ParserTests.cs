@@ -1,18 +1,22 @@
 using NotiFIITBot.Consts;
 using NotiFIITBot.Domain;
+using Serilog;
 
 namespace NotiFIITBot.Tests;
 
 [TestFixture]
 public class ParserTests
 {
+    private bool printInformation = false;
+    
     [Test]
     public async Task GetLessons()
     {
         var lessons = await ApiParser.GetLessons(240801, 1);
         foreach (var lesson in lessons)
         {
-            Console.WriteLine($"День: {lesson.DayOfWeek}, " +
+            if(printInformation)
+                Console.WriteLine($"День: {lesson.DayOfWeek}, " +
                               $"Группа: {lesson.MenGroup}, " + $"Подгруппа: {lesson.SubGroup}, " +
                               $"Предмет: {lesson.SubjectName}, " +
                               $"Преподаватель: {lesson.TeacherName}, " +
@@ -51,20 +55,20 @@ public class ParserTests
     public void GetEvenness_Monday()
     {
         var date = new DateOnly(2025,11,10);
-        Assert.That(date.Evenness() == Evenness.Odd);
+        Assert.That(date.GetEvenness() == Evenness.Odd);
     }
     
     [Test]
     public void GetEvenness_NotMonday()
     {
         var date = new DateOnly(2025,9,2);
-        Assert.That(date.Evenness() == Evenness.Odd);
+        Assert.That(date.GetEvenness() == Evenness.Odd);
     }
     
     [Test]
     public void GetEvenness_AnotherYear()
     {
         var date = new DateOnly(2026,1,3);
-        Assert.That(date.Evenness() == Evenness.Even);
+        Assert.That(date.GetEvenness() == Evenness.Even);
     }
 }

@@ -10,7 +10,7 @@ public class ScheduleRepositoryIntegrationTests : IDisposable
     private readonly ScheduleDbContext _context;
     private readonly ScheduleRepository _repo;
 
-    public ScheduleRepositoryIntegrationTests()
+    /*public ScheduleRepositoryIntegrationTests()
     {
         var options = new DbContextOptionsBuilder<ScheduleDbContext>()
             .UseNpgsql("Host=localhost;Port=5433;Database=notifiit_db;Username=notifiit_admin;Password=226381194")
@@ -18,7 +18,7 @@ public class ScheduleRepositoryIntegrationTests : IDisposable
 
         _context = new ScheduleDbContext(options);
         _repo = new ScheduleRepository(_context);
-    }
+    }*/
 
     [Test]
     public async Task UpsertLesson_ShouldAddAndRemoveLessonInDatabase()

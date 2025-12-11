@@ -7,6 +7,7 @@ using NotiFIITBot.Domain;
 using NotiFIITBot.Logging;
 using NotiFIITBot.Repo;
 using Serilog;
+using Group = NotiFIITBot.Domain.Group;
 
 namespace NotiFIITBot.App;
 
@@ -79,7 +80,7 @@ public class DbSeeder
         {
             logger.Information("Fetching API group list...");
             
-            var apiGroups = new List<ApiParser.Group>();
+            var apiGroups = new List<Group>();
             apiGroups.AddRange(await ApiParser.GetGroups(1));
             apiGroups.AddRange(await ApiParser.GetGroups(2));
             

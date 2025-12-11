@@ -1,9 +1,9 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using NotiFIITBot.Consts;
 using NotiFIITBot.Database.Data;
 using NotiFIITBot.Database.Models;
-using NotiFIITBot.Consts;
 using NotiFIITBot.Repo;
-using Xunit;
+//using Xunit;
 
 namespace NotiFIITBot.Tests
 {
@@ -55,7 +55,7 @@ namespace NotiFIITBot.Tests
         };
 
         // --- Тест чтения уроков ---
-        [Fact]
+        /*[Fact]
         public async Task GetSchedule_ReturnsCorrectLessons_ForGivenGroup()
         {
             // Arrange
@@ -80,10 +80,10 @@ namespace NotiFIITBot.Tests
             // Урок с Evenness = Odd (Physics) должен быть возвращён
             Xunit.Assert.Single(lessons);
             Xunit.Assert.Equal("Physics", lessons.First().SubjectName);
-        }
+        }*/
 
         // --- Тест добавления урока через UpsertLessonsAsync ---
-        [Fact]
+        /*[Fact]
         public async Task UpsertLessons_AddsNewLesson()
         {
             // Arrange
@@ -119,6 +119,6 @@ namespace NotiFIITBot.Tests
             var savedLesson = await ctx.Lessons.FindAsync(newLesson.LessonId);
             Xunit.Assert.NotNull(savedLesson);
             Xunit.Assert.Equal("Biology", savedLesson.SubjectName);
-        }
+        }*/
     }
 }

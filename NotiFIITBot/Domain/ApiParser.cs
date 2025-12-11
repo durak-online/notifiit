@@ -73,64 +73,6 @@ public static class ApiParser
     }
 
     /// <summary>
-    /// СТАРЫЙ МЕТОД (Legacy): Получает одно конкретное занятие.
-    /// Оставлен для совместимости с кодом в Main, который вызывает GetLesson(...).
-    /// </summary>
-    public static async Task<Lesson?> GetLesson(int groupNumber, DateOnly date, int pairNumber, int subGroup)
-    {
-        using var client = new HttpClient();
-        var groupId = await GetGroupId(groupNumber);
-        
-        // Если группа не найдена
-        if (groupId == -1) return null;
-
-        var url = $"https://urfu.ru/api/v2/schedule/groups/{groupId}/schedule?date_gte={date:yyyy-MM-dd}&date_lte={date:yyyy-MM-dd}";
-        
-        try
-        {
-            var response = await client.GetAsync(url);
-            response.EnsureSuccessStatusCode();
-            var content = await response.Content.ReadAsStringAsync();
-            var schedule = JsonSerializer.Deserialize<ScheduleResponse>(content);
-
-            if (schedule?.events == null) return null;
-
-            foreach (var ev in schedule.events)
-            {
-                if (ev.pairNumber == pairNumber &&
-                    (ev.comment == null || ev.comment.Contains($"{subGroup} пг.") || !ev.comment.Contains("пг.")))
-                {
-                    var timeBegin = TimeOnly.Parse(ev.timeBegin);
-                    var timeEnd = TimeOnly.Parse(ev.timeEnd);
-                    
-                    // Применяем ту же очистку, что и в новом методе
-                    var cleanTitle = Regex.Replace(ev.title, @"\s*\((подгруппа|лекция|практика|лаб.*?|семинар).*?\)", "",
-                        RegexOptions.IgnoreCase).Trim();
-
-                    return new Lesson(
-                        pairNumber, 
-                        cleanTitle, 
-                        ev.teacherName, 
-                        ev.auditoryTitle, 
-                        timeBegin, 
-                        timeEnd,
-                        ev.auditoryLocation, 
-                        subGroup, 
-                        groupNumber,
-                        DateOnlyExtensions.GetEvenness(date),
-                        date.DayOfWeek);
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"[GetLesson Error] {ex.Message}");
-        }
-
-        return null;
-    }
-
-    /// <summary>
     /// Получает внутренний ID группы по её номеру (например, 240801 -> 63804)
     /// </summary>
     public static async Task<int> GetGroupId(int groupNumber)
@@ -185,21 +127,4 @@ public static class ApiParser
             return new List<Group>();
         }
     }
-
-    public class ScheduleResponse { public List<Event> events { get; set; } }
-    
-    public class Event 
-    { 
-        public int pairNumber { get; set; } 
-        public string date { get; set; }
-        public string timeBegin { get; set; } 
-        public string timeEnd { get; set; } 
-        public string title { get; set; } 
-        public string teacherName { get; set; } 
-        public string auditoryTitle { get; set; } 
-        public string auditoryLocation { get; set; } 
-        public string comment { get; set; } 
-    }
-    
-    public class Group { public int id { get; set; } public string title { get; set; } }
 }
