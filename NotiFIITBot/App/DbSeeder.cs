@@ -11,7 +11,14 @@ namespace NotiFIITBot.App;
 
 public class DbSeeder
 {
-    private readonly ScheduleDbContextFactory _contextFactory = new();
+    private readonly ScheduleDbContext _context;
+    private readonly IScheduleRepository _scheduleRepository;
+
+    public DbSeeder(ScheduleDbContext context, IScheduleRepository scheduleRepository)
+    {
+        _context = context;
+        _scheduleRepository = scheduleRepository;
+    }
 
     public async Task SeedAsync(bool useTable, bool useApi, int[]? targetGroups = null)
     {
@@ -117,18 +124,16 @@ public class DbSeeder
     
     private async Task ClearExistingLessonsAsync(int[]? targetGroups)
     {
-        await using var context = _contextFactory.CreateDbContext(null);
-
         if (targetGroups == null || targetGroups.Length == 0)
         {
             Log.Warning("[SEED-CLEAN] Cleaning ALL lessons table...");
-            await context.Set<LessonModel>().ExecuteDeleteAsync();
+            await _context.Set<LessonModel>().ExecuteDeleteAsync();
             Log.Information("[SEED-CLEAN] All lessons deleted.");
         }
         else
         {
             Log.Information($"[SEED-CLEAN] Cleaning lessons for groups: {string.Join(", ", targetGroups)}...");
-            await context.Set<LessonModel>()
+            await _context.Set<LessonModel>()
                 .Where(l => l.MenGroup == 0 && targetGroups.Contains(l.MenGroup))
                 .ExecuteDeleteAsync();
             Log.Information("[SEED-CLEAN] Targeted cleanup finished.");
@@ -156,8 +161,7 @@ public class DbSeeder
                     Evenness = l.EvennessOfWeek
                 }).ToList();
 
-                var repo = new ScheduleRepository();
-                await repo.UpsertLessonsAsync(dbModels);
+                await _scheduleRepository.UpsertLessonsAsync(dbModels);
             }
             catch (Exception ex)
             {

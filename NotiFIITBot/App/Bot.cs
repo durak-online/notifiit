@@ -27,27 +27,31 @@ public partial class Bot : IDisposable
 
     private readonly IUserRepository userRepository;
     private readonly IScheduleRepository scheduleRepository;
+    private readonly ScheduleService scheduleService;
 
     public Bot(IUserRepository userRepository, IScheduleRepository scheduleRepository,
-        CancellationTokenSource cts)
+        ScheduleService scheduleService, CancellationTokenSource cts)
     {
         this.userRepository = userRepository;
         this.scheduleRepository = scheduleRepository;
+        this.scheduleService = scheduleService;
+        this.cts = cts;
+        var proxy = new WebProxy("http://75.56.141.249:8000");
 
+        var httpClient = new HttpClient(new HttpClientHandler()
+        {
+            Proxy = proxy,
+            UseProxy = false
+        });
+        this.httpClient = httpClient;
+
+        bot = new TelegramBotClient(token: EnvReader.BotToken, httpClient: httpClient);
+    }
+
+    public async Task StartPolling()
+    {
         try
         {
-            this.cts = cts;
-            var proxy = new WebProxy("http://75.56.141.249:8000");
-
-            var httpClient = new HttpClient(new HttpClientHandler()
-            {
-                Proxy = proxy,
-                UseProxy = false
-            });
-            this.httpClient = httpClient;
-
-            bot = new TelegramBotClient(token: EnvReader.BotToken, httpClient: httpClient);
-
             using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
             var info = bot.GetMe(timeoutCts.Token).GetAwaiter().GetResult();
             Log.Information($"[BOT] Bot {info} started to work");
@@ -62,7 +66,7 @@ public partial class Bot : IDisposable
                 HandleUpdate,
                 HandlePollingError,
                 receiverOptions,
-                this.cts.Token
+                cts.Token
             );
 
             Log.Information("[BOT] Bot is now receiving updates...");
@@ -361,13 +365,11 @@ public partial class Bot : IDisposable
     {
         try
         {
-            var service = new ScheduleService(scheduleRepository);
-
             var user = await userRepository.FindUserAsync(userId);
             if (user == null)
                 return "Ты еще не зарегестрирован в базе данных";
 
-            var scheduleDays = await service.GetFormattedScheduleAsync(user.MenGroup, user.SubGroup, period);
+            var scheduleDays = await scheduleService.GetFormattedScheduleAsync(user.MenGroup, user.SubGroup, period);
             if (scheduleDays == null || scheduleDays.Count == 0)
             {
                 return $"Пар для группы МЕН-{user.MenGroup}-{user.SubGroup} нет 🎉";
@@ -405,7 +407,7 @@ public partial class Bot : IDisposable
             "/rereg - Изменяет твою МЕН группу и подгруппу";
 
         if (IsAdmin(message.From!))
-            answer += "\n\n <b>ДЛЯ АДМИНОВ</b>\n\n" +
+            answer += "\n\n<b>ДЛЯ АДМИНОВ</b>\n\n" +
                 "/stop - Остановить бота, то есть <b>остановить программу на сервере</b>\n" +
                 "/delete *tg_id* - Удалить юзера с данным tg_id из базы данных\n";
 

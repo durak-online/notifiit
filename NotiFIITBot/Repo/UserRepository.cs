@@ -4,20 +4,13 @@ using NotiFIITBot.Database.Models;
 
 namespace NotiFIITBot.Repo;
 
-public class UserRepository : IUserRepository
+public class UserRepository(ScheduleDbContext context) : IUserRepository
 {
-    private readonly ScheduleDbContextFactory _contextFactory;
-
-    public UserRepository()
-    {
-        _contextFactory = new ScheduleDbContextFactory();
-    }
+    private readonly ScheduleDbContext _context = context;
 
     public async Task UpdateUserPreferences(long chatId, int group, int? subGroup, bool notificationsEnabled, int minutes)
     {
-        using var context = _contextFactory.CreateDbContext(null);
-
-        var user = await context.Users.FindAsync(chatId);
+        var user = await _context.Users.FindAsync(chatId);
 
         if (user != null)
         {
@@ -26,7 +19,7 @@ public class UserRepository : IUserRepository
             user.NotificationsEnabled = notificationsEnabled;
             user.GlobalNotificationMinutes = minutes;
 
-            await context.SaveChangesAsync();
+            await _context.SaveChangesAsync();
         }
         else
         {
@@ -36,9 +29,7 @@ public class UserRepository : IUserRepository
 
     public async Task AddLessonOverrideAsync(long chatId, Guid lessonId, bool? enableOverride, int? minutesOverride)
     {
-        await using var context = _contextFactory.CreateDbContext(null);
-
-        var exists = await context.UserNotificationConfigs
+        var exists = await _context.UserNotificationConfigs
             .AnyAsync(c => c.TelegramId == chatId && c.LessonId == lessonId);
 
         if (!exists)
@@ -51,16 +42,14 @@ public class UserRepository : IUserRepository
                 NotificationMinutesOverride = minutesOverride
             };
 
-            context.UserNotificationConfigs.Add(config);
-            await context.SaveChangesAsync();
+            _context.UserNotificationConfigs.Add(config);
+            await _context.SaveChangesAsync();
         }
     }
 
     public async Task UpdateLessonOverrideAsync(long chatId, Guid lessonId, bool? enableOverride, int? minutesOverride)
     {
-        await using var context = _contextFactory.CreateDbContext(null);
-
-        var config = await context.UserNotificationConfigs
+        var config = await _context.UserNotificationConfigs
             .FirstOrDefaultAsync(c => c.TelegramId == chatId && c.LessonId == lessonId);
 
         if (config != null)
@@ -68,34 +57,30 @@ public class UserRepository : IUserRepository
             config.IsNotificationEnabledOverride = enableOverride;
             config.NotificationMinutesOverride = minutesOverride;
 
-            await context.SaveChangesAsync();
+            await _context.SaveChangesAsync();
         }
     }
 
     public async Task DeleteLessonOverrideAsync(long chatId, Guid lessonId)
     {
-        await using var context = _contextFactory.CreateDbContext(null);
-
-        var config = await context.UserNotificationConfigs
+        var config = await _context.UserNotificationConfigs
             .FirstOrDefaultAsync(c => c.TelegramId == chatId && c.LessonId == lessonId);
 
         if (config != null)
         {
-            context.UserNotificationConfigs.Remove(config);
-            await context.SaveChangesAsync();
+            _context.UserNotificationConfigs.Remove(config);
+            await _context.SaveChangesAsync();
         }
     }
 
     public async Task<User?> FindUserAsync(long chatId)
     {
-        await using var context = _contextFactory.CreateDbContext(null);
-        return await context.Users.FindAsync(chatId);
+        return await _context.Users.FindAsync(chatId);
     }
     
     public async Task AddUserAsync(long chatId, int group, int subGroup)
     {
-        await using var context = _contextFactory.CreateDbContext(null);
-        var exists = await context.Users.AnyAsync(u => u.TelegramId == chatId);
+        var exists = await _context.Users.AnyAsync(u => u.TelegramId == chatId);
 
         if (!exists)
         {
@@ -108,15 +93,14 @@ public class UserRepository : IUserRepository
                 GlobalNotificationMinutes = 15
             };
 
-            context.Users.Add(newUser);
-            await context.SaveChangesAsync();
+            _context.Users.Add(newUser);
+            await _context.SaveChangesAsync();
         }
     }
     
     public async Task UpdateUserAsync(User user)
     {
-        await using var context = _contextFactory.CreateDbContext(null);
-        var existingUser = await context.Users.FindAsync(user.TelegramId);
+        var existingUser = await _context.Users.FindAsync(user.TelegramId);
         if (existingUser != null)
         {
             existingUser.MenGroup = user.MenGroup;
@@ -124,7 +108,7 @@ public class UserRepository : IUserRepository
             existingUser.NotificationsEnabled = user.NotificationsEnabled;
             existingUser.GlobalNotificationMinutes = user.GlobalNotificationMinutes;
 
-            await context.SaveChangesAsync();
+            await _context.SaveChangesAsync();
         }
         else
         {
@@ -134,12 +118,11 @@ public class UserRepository : IUserRepository
     
     public async Task DeleteUserAsync(long chatId)
     {
-        await using var context = _contextFactory.CreateDbContext(null);
-        var user = await context.Users.FindAsync(chatId);
+        var user = await _context.Users.FindAsync(chatId);
         if (user != null)
         {
-            context.Users.Remove(user);
-            await context.SaveChangesAsync();
+            _context.Users.Remove(user);
+            await _context.SaveChangesAsync();
         }
     }
 }

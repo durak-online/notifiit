@@ -1,17 +1,15 @@
 ﻿using NotiFIITBot.Consts;
 using NotiFIITBot.Database.Models;
 
-namespace NotiFIITBot.Repo
-{
-    public interface IScheduleRepository
-    {
-        Task<List<LessonModel>> UpsertLessonsAsync(IEnumerable<LessonModel> lessons, CancellationToken ct = default);
+namespace NotiFIITBot.Repo;
 
-        Task<List<LessonModel>> GetScheduleAsync(
-            int groupNumber,
-            int? subGroup,
-            SchedulePeriod period,
-            DateTime? now = null,
-            CancellationToken ct = default);
-    }
+public interface IScheduleRepository
+{
+    Task<List<LessonModel>> UpsertLessonsAsync(IEnumerable<LessonModel> lessons);
+
+    Task<List<LessonModel>> GetScheduleAsync(
+        int groupNumber,
+        int? subGroup,
+        SchedulePeriod period,
+        DateTime? now = null);
 }

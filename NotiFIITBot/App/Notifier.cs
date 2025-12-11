@@ -6,10 +6,12 @@ public class Notifier
 {
     private readonly IScheduler scheduler;
     private readonly Bot botClient;
+    private readonly CancellationTokenSource cts;
 
-    public Notifier(Bot botClient)
+    public Notifier(Bot botClient, CancellationTokenSource cts)
     {
         this.botClient = botClient;
+        this.cts = cts;
         scheduler = SchedulerBuilder
             .Create()
             .UseDefaultThreadPool(maxConcurrency: 5)
@@ -19,7 +21,7 @@ public class Notifier
 
     public async Task Start()
     {
-        await scheduler.Start();
+        await scheduler.Start(cts.Token);
 
         var jobData = new JobDataMap();
         jobData.Put("botClient", botClient);
