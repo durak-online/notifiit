@@ -13,6 +13,8 @@ public static class DiContainer
 {
     public static IServiceProvider ConfigureServices()
     {
+        ConfigureLogger();
+        
         var services = new ServiceCollection();
 
         var connectionString = $"Host=localhost;" +
@@ -40,7 +42,6 @@ public static class DiContainer
 
         services.AddSingleton<CancellationTokenSource>();
 
-        ConfigureLogger();
 
         return services.BuildServiceProvider();
     }

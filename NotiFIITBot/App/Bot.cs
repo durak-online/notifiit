@@ -10,6 +10,7 @@ using NotiFIITBot.Consts;
 using NotiFIITBot.Domain;
 using NotiFIITBot.Repo;
 using System.Text.RegularExpressions;
+using NotiFIITBot.Logging;
 
 namespace NotiFIITBot.App;
 
@@ -18,6 +19,7 @@ public partial class Bot : IDisposable
     private readonly TelegramBotClient bot;
     private readonly CancellationTokenSource cts;
     private readonly HttpClient httpClient;
+    private readonly ILogger logger;
 
     private readonly HashSet<long> registeringUserIds = new();
 
@@ -30,12 +32,13 @@ public partial class Bot : IDisposable
     private readonly ScheduleService scheduleService;
 
     public Bot(IUserRepository userRepository, IScheduleRepository scheduleRepository,
-        ScheduleService scheduleService, CancellationTokenSource cts)
+        ScheduleService scheduleService, CancellationTokenSource cts, ILoggerFactory loggerFactory)
     {
         this.userRepository = userRepository;
         this.scheduleRepository = scheduleRepository;
         this.scheduleService = scheduleService;
         this.cts = cts;
+        logger = loggerFactory.CreateLogger("BOT");
         var proxy = new WebProxy("http://75.56.141.249:8000");
 
         var httpClient = new HttpClient(new HttpClientHandler()
@@ -54,7 +57,7 @@ public partial class Bot : IDisposable
         {
             using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
             var info = bot.GetMe(timeoutCts.Token).GetAwaiter().GetResult();
-            Log.Information($"[BOT] Bot {info} started to work");
+            logger.Information($"Bot {info} started to work");
 
             var receiverOptions = new ReceiverOptions
             {
@@ -68,12 +71,12 @@ public partial class Bot : IDisposable
                 receiverOptions,
                 cts.Token
             );
-
-            Log.Information("[BOT] Bot is now receiving updates...");
+            
+            logger.Information("Bot is now receiving updates...");
         }
         catch (Exception ex)
         {
-            Log.Fatal($"[BOT] Can't initialize bot: {ex}");
+            logger.Fatal($"Can't initialize bot: {ex}");
             throw;
         }
     }
@@ -90,11 +93,11 @@ public partial class Bot : IDisposable
             }
             catch (Exception ex)
             {
-                Log.Error(ex, $"[BOT] Can't send notification to user with ID {id}");
+                logger.Error(ex, $"Can't send notification to user with ID {id}");
             }
         }
 
-        Log.Information($"[BOT] Sent notifitation to {successful} out of {chatIds.Length} users");
+        logger.Information($"Sent notifitation to {successful} out of {chatIds.Length} users");
     }
 
     private async Task HandleUpdate(ITelegramBotClient botClient, Update update, CancellationToken cancellationToken)
@@ -104,23 +107,23 @@ public partial class Bot : IDisposable
             switch (update)
             {
                 case { Message: { } message }:
-                    Log.Information($"[BOT] Received message from {message.From!.ToString() ?? "unknown"}");
+                    logger.Information($"Received message from {message.From!.ToString() ?? "unknown"}");
                     await HandleMessage(message);
                     break;
 
                 case { CallbackQuery: { } cbQuery }:
-                    Log.Information($"[BOT] Callback query from {cbQuery.From}");
+                    logger.Information($"Callback query from {cbQuery.From}");
                     await HandleCallbackQuery(cbQuery);
                     break;
 
                 default:
-                    Log.Information($"[BOT] Received {update.Type} update type, no handler for this type");
+                    logger.Information($"Received {update.Type} update type, no handler for this type");
                     break;
             }
         }
         catch (Exception ex)
         {
-            Log.Error($"[BOT] Exception while handling update: {ex}");
+            logger.Error($"Exception while handling update: {ex}");
         }
     }
 
@@ -147,7 +150,7 @@ public partial class Bot : IDisposable
 
         if (sched == null)
         {
-            Log.Error($"[BOT] Can't handle CallbackQuery with data: {cbQuery.Data}, text: {cbQuery.Message?.Text}");
+            logger.Error($"Can't handle CallbackQuery with data: {cbQuery.Data}, text: {cbQuery.Message?.Text}");
             sched = "Произошла ошибка при получении расписания";
         }
 
@@ -165,11 +168,11 @@ public partial class Bot : IDisposable
     {
         await Task.Run(() =>
         {
-            Log.Error($"[BOT] Telegram Bot Error: {exception}");
+            logger.Error($"Telegram Bot Error: {exception}");
 
             if (exception is not ApiRequestException apiException || apiException.ErrorCode != 401)
                 return;
-            Log.Fatal("[BOT] Invalid token, stopping bot...");
+            logger.Fatal("Invalid token, stopping bot...");
             cts.Cancel();
         }, cancellationToken);
     }
@@ -271,7 +274,7 @@ public partial class Bot : IDisposable
             #region admin commands
             case "/stop" when IsAdmin(message.From!):
                 await bot.SendMessage(message.Chat.Id, "Останавливаю бота...");
-                Log.Information($"Stopped by {message.From!}");
+                logger.Information($"Stopped by {message.From!}");
                 cts.Cancel();
                 break;
 
@@ -386,7 +389,7 @@ public partial class Bot : IDisposable
         }
         catch (Exception ex)
         {
-            Log.Error(ex, "Error while getting schedule from DB");
+            logger.Error(ex, "Error while getting schedule from DB");
             return "Произошла ошибка при получении данных из базы";
         }
     }

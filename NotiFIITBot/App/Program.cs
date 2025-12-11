@@ -15,7 +15,7 @@ public class Program
         var serviceProvider = DiContainer.ConfigureServices();
 
         var cts = serviceProvider.GetRequiredService<CancellationTokenSource>();
-        var logger = serviceProvider.GetRequiredService<ILoggerFactory>().CreateLogger("APP");
+        logger = serviceProvider.GetRequiredService<ILoggerFactory>().CreateLogger("APP");
 
         logger.Information("Started program");
 
