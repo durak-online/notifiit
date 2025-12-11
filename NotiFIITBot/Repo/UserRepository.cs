@@ -17,16 +17,18 @@ public class UserRepository(ScheduleDbContext context, ILoggerFactory loggerFact
 
         if (user != null)
         {
+            logger.Information($"Updating preferences for user {chatId}");
             user.MenGroup = group;
             user.SubGroup = subGroup;
             user.NotificationsEnabled = notificationsEnabled;
             user.GlobalNotificationMinutes = minutes;
 
             await _context.SaveChangesAsync();
+            logger.Information($"Successfully updated preferences for user {chatId}");
         }
         else
         {
-            //логи (если нужно)
+            logger.Warning($"Attempted to update preferences for non-existent user {chatId}");
         }
     }
 
@@ -47,6 +49,11 @@ public class UserRepository(ScheduleDbContext context, ILoggerFactory loggerFact
 
             _context.UserNotificationConfigs.Add(config);
             await _context.SaveChangesAsync();
+            logger.Information($"Added lesson override for user {chatId}, lesson {lessonId}");
+        }
+        else
+        {
+            logger.Information($"Lesson override for user {chatId}, lesson {lessonId} already exists. Skipping.");
         }
     }
 
@@ -61,6 +68,11 @@ public class UserRepository(ScheduleDbContext context, ILoggerFactory loggerFact
             config.NotificationMinutesOverride = minutesOverride;
 
             await _context.SaveChangesAsync();
+            logger.Information($"Updated lesson override for user {chatId}, lesson {lessonId}");
+        }
+        else
+        {
+            logger.Warning($"Attempted to update non-existent lesson override for user {chatId}, lesson {lessonId}");
         }
     }
 
@@ -73,12 +85,28 @@ public class UserRepository(ScheduleDbContext context, ILoggerFactory loggerFact
         {
             _context.UserNotificationConfigs.Remove(config);
             await _context.SaveChangesAsync();
+            logger.Information($"Deleted lesson override for user {chatId}, lesson {lessonId}");
+        }
+        else
+        {
+            logger.Warning($"Attempted to delete non-existent lesson override for user {chatId}, lesson {lessonId}");
         }
     }
 
+
     public async Task<User?> FindUserAsync(long chatId)
     {
-        return await _context.Users.FindAsync(chatId);
+        logger.Information($"Searching for user with ID {chatId}");
+        var user = await _context.Users.FindAsync(chatId);
+        if (user == null)
+        {
+            logger.Information($"User with ID {chatId} not found");
+        }
+        else
+        {
+            logger.Information($"User with ID {chatId} found");
+        }
+        return user;
     }
     
     public async Task AddUserAsync(long chatId, int group, int subGroup)
@@ -98,6 +126,11 @@ public class UserRepository(ScheduleDbContext context, ILoggerFactory loggerFact
 
             _context.Users.Add(newUser);
             await _context.SaveChangesAsync();
+            logger.Information($"Added new user with ID {chatId}, group {group}-{subGroup}");
+        }
+        else
+        {
+            logger.Information($"User with ID {chatId} already exists. Skipping add.");
         }
     }
     
@@ -112,10 +145,11 @@ public class UserRepository(ScheduleDbContext context, ILoggerFactory loggerFact
             existingUser.GlobalNotificationMinutes = user.GlobalNotificationMinutes;
 
             await _context.SaveChangesAsync();
+            logger.Information($"Updated user with ID {user.TelegramId}");
         }
         else
         {
-            // по хорошему бы тут залогировать типо пользователя с таким айди не существует
+            logger.Warning($"Attempted to update non-existent user with ID {user.TelegramId}");
         }
     }
     
@@ -126,6 +160,11 @@ public class UserRepository(ScheduleDbContext context, ILoggerFactory loggerFact
         {
             _context.Users.Remove(user);
             await _context.SaveChangesAsync();
+            logger.Information($"Deleted user with ID {chatId}");
+        }
+        else
+        {
+            logger.Warning($"Attempted to delete non-existent user with ID {chatId}");
         }
     }
 }
