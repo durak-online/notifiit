@@ -1,6 +1,5 @@
 using NotiFIITBot.Consts;
 using NotiFIITBot.Domain;
-using Serilog;
 
 namespace NotiFIITBot.Tests;
 
@@ -12,7 +11,7 @@ public class ParserTests
     [Test]
     public async Task GetLessons()
     {
-        var lessons = await ApiParser.GetLessons(240801, 1);
+        var lessons = await ApiParser.GetLessons(63804, 1);
         foreach (var lesson in lessons)
         {
             if(printInformation)
