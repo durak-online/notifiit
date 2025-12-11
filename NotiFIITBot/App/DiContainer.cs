@@ -5,6 +5,7 @@ using NotiFIITBot.Repo;
 using NotiFIITBot.Consts;
 using Serilog;
 using NotiFIITBot.Domain;
+using NotiFIITBot.Logging;
 
 namespace NotiFIITBot.App;
 
@@ -24,6 +25,9 @@ public static class DiContainer
         {
             options.UseNpgsql(connectionString);
         }, ServiceLifetime.Transient);
+
+        services.AddSingleton(Log.Logger);
+        services.AddSingleton<ILoggerFactory, LoggerFactory>();
 
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IScheduleRepository, ScheduleRepository>();
@@ -47,8 +51,12 @@ public static class DiContainer
             Directory.CreateDirectory("logs");
 
         Log.Logger = new LoggerConfiguration()
-            .WriteTo.Console()
-            .WriteTo.File($"logs/bot-{DateTime.Now:yyyy-MM-dd}.log")
+            .Enrich.FromLogContext()
+            .WriteTo.Console(outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] [{SourceContext}] {Message:lj}{NewLine}{Exception}")
+            .WriteTo.File(
+                $"logs/bot-{DateTime.Now:yyyy-MM-dd}.log",
+                outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] [{SourceContext}] {Message:lj}{NewLine}{Exception}"
+            )
             .CreateLogger();
     }
 }

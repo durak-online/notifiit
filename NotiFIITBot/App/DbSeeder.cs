@@ -4,6 +4,7 @@ using NotiFIITBot.Consts;
 using NotiFIITBot.Database.Data;
 using NotiFIITBot.Database.Models;
 using NotiFIITBot.Domain;
+using NotiFIITBot.Logging;
 using NotiFIITBot.Repo;
 using Serilog;
 
@@ -13,20 +14,22 @@ public class DbSeeder
 {
     private readonly ScheduleDbContext _context;
     private readonly IScheduleRepository _scheduleRepository;
+    private readonly ILogger logger;
 
-    public DbSeeder(ScheduleDbContext context, IScheduleRepository scheduleRepository)
+    public DbSeeder(ScheduleDbContext context, IScheduleRepository scheduleRepository, ILoggerFactory loggerFactory)
     {
         _context = context;
         _scheduleRepository = scheduleRepository;
+        logger = loggerFactory.CreateLogger("SEED");
     }
 
     public async Task SeedAsync(bool useTable, bool useApi, int[]? targetGroups = null)
     {
-        Log.Information("[SEED] Starting Unified Seeding...");
+        logger.Information("Starting Unified Seeding...");
         
         if (string.IsNullOrEmpty(EnvReader.PostgresPassword))
         {
-            Log.Fatal("[SEED] CRITICAL: Env variables not loaded.");
+            logger.Fatal("CRITICAL: Env variables not loaded");
             return;
         }
 
@@ -43,7 +46,7 @@ public class DbSeeder
             {
                 if (string.IsNullOrWhiteSpace(currentRange))
                 {
-                    Log.Warning("[SEED] Range is empty in EnvReader, skipping...");
+                    logger.Warning("Range is empty in EnvReader, skipping...");
                     continue;
                 }
 
@@ -61,12 +64,12 @@ public class DbSeeder
                             if (l.MenGroup.HasValue) tableGroupNumbers.Add(l.MenGroup.Value);
                         
                         allLessons.AddRange(tableData);
-                        Log.Information($"[SEED] Loaded {tableData.Count} lessons from range {currentRange}.");
+                        logger.Information($"Loaded {tableData.Count} lessons from range {currentRange}");
                     }
                 }
                 catch (Exception ex)
                 {
-                    Log.Error($"[SEED] Error parsing range {currentRange}: {ex.Message}");
+                    logger.Error($"Error parsing range {currentRange}: {ex.Message}");
                 }
             }
         }
@@ -74,14 +77,14 @@ public class DbSeeder
         // 2. ГРУЗИМ API
         if (useApi)
         {
-            Log.Information("[SEED] Fetching API group list...");
+            logger.Information("Fetching API group list...");
             
             var apiGroups = new List<ApiParser.Group>();
             apiGroups.AddRange(await ApiParser.GetGroups(1));
             apiGroups.AddRange(await ApiParser.GetGroups(2));
             
 
-            Log.Information($"[SEED] Found {apiGroups.Count} groups in API.");
+            logger.Information($"Found {apiGroups.Count} groups in API");
 
             foreach (var group in apiGroups)
             {
@@ -90,7 +93,7 @@ public class DbSeeder
                 if (targetGroups != null && targetGroups.Length > 0 && !targetGroups.Contains(gNum)) continue; 
                 if (tableGroupNumbers.Contains(gNum)) continue; 
 
-                Log.Information($"[SEED] Loading API for {gNum} (Internal ID: {group.id})...");
+                logger.Information($"Loading API for {gNum} (Internal ID: {group.id})...");
                 
                 var sub1 = (await ApiParser.GetLessons(group.id, 1)).ToList();
                 var sub2 = (await ApiParser.GetLessons(group.id, 2)).ToList();
@@ -105,11 +108,11 @@ public class DbSeeder
 
         if (!allLessons.Any())
         {
-            Log.Warning("[SEED] No lessons found. Exiting.");
+            logger.Warning("No lessons found. Exiting");
             return;
         }
 
-        Log.Information($"[SEED] Processing {allLessons.Count} raw lessons...");
+        logger.Information($"Processing {allLessons.Count} raw lessons...");
 
         var lessonsSubNormalized = LessonProcessor.NormalizeSubgroups(allLessons);
         var finalLessons = LessonProcessor.MergeByEvenness(lessonsSubNormalized).ToList();
@@ -117,7 +120,7 @@ public class DbSeeder
         
         var uniqueLessons = finalLessons.DistinctBy(l => l.LessonId).ToList();
 
-        Log.Information($"[SEED] Final count to save: {uniqueLessons.Count}");
+        logger.Information($"Final count to save: {uniqueLessons.Count}");
 
         await SaveBatchedSafeAsync(uniqueLessons);
     }
@@ -126,17 +129,17 @@ public class DbSeeder
     {
         if (targetGroups == null || targetGroups.Length == 0)
         {
-            Log.Warning("[SEED-CLEAN] Cleaning ALL lessons table...");
+            logger.Warning("[SEED-CLEAN] Cleaning ALL lessons table...");
             await _context.Set<LessonModel>().ExecuteDeleteAsync();
-            Log.Information("[SEED-CLEAN] All lessons deleted.");
+            logger.Information("[SEED-CLEAN] All lessons deleted");
         }
         else
         {
-            Log.Information($"[SEED-CLEAN] Cleaning lessons for groups: {string.Join(", ", targetGroups)}...");
+            logger.Information($"[SEED-CLEAN] Cleaning lessons for groups: {string.Join(", ", targetGroups)}...");
             await _context.Set<LessonModel>()
                 .Where(l => l.MenGroup == 0 && targetGroups.Contains(l.MenGroup))
                 .ExecuteDeleteAsync();
-            Log.Information("[SEED-CLEAN] Targeted cleanup finished.");
+            logger.Information("[SEED-CLEAN] Targeted cleanup finished");
         }
     }
 
@@ -165,10 +168,10 @@ public class DbSeeder
             }
             catch (Exception ex)
             {
-                Log.Error($"[SEED] Batch save error: {ex.Message}");
+                logger.Error($"Batch save error: {ex.Message}");
             }
         }
-        Log.Information("[SEED] Seeding finished successfully.");
+        logger.Information("Seeding finished successfully");
     }
 
     private static bool TryParseGroupNumberRegex(string title, out int number)

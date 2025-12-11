@@ -3,13 +3,17 @@ using NotiFIITBot.Consts;
 using NotiFIITBot.Database.Data;
 using NotiFIITBot.Database.Models;
 using NotiFIITBot.Domain;
+using NotiFIITBot.Logging;
+using Serilog;
 
 namespace NotiFIITBot.Repo;
 
-public class ScheduleRepository(ScheduleDbContext context, CancellationTokenSource cts) : IScheduleRepository
+public class ScheduleRepository(ScheduleDbContext context, CancellationTokenSource cts, 
+    ILoggerFactory loggerFactory) : IScheduleRepository
 {
     private readonly ScheduleDbContext _context = context;
     private readonly CancellationTokenSource ct = cts;
+    private readonly ILogger logger = loggerFactory.CreateLogger("SCHED_REPO");
 
     public async Task<List<LessonModel>> UpsertLessonsAsync(IEnumerable<LessonModel> lessonModels)
     {

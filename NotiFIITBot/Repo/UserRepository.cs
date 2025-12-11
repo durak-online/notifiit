@@ -1,12 +1,15 @@
 using Microsoft.EntityFrameworkCore;
 using NotiFIITBot.Database.Data;
 using NotiFIITBot.Database.Models;
+using NotiFIITBot.Logging;
+using Serilog;
 
 namespace NotiFIITBot.Repo;
 
-public class UserRepository(ScheduleDbContext context) : IUserRepository
+public class UserRepository(ScheduleDbContext context, ILoggerFactory loggerFactory) : IUserRepository
 {
     private readonly ScheduleDbContext _context = context;
+    private readonly ILogger logger = loggerFactory.CreateLogger("USER_REPO");
 
     public async Task UpdateUserPreferences(long chatId, int group, int? subGroup, bool notificationsEnabled, int minutes)
     {
