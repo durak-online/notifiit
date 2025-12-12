@@ -33,10 +33,12 @@ public class Program
             using var botScope = serviceProvider.CreateScope();
             var bot = botScope.ServiceProvider.GetRequiredService<Bot>();
             var notifier = botScope.ServiceProvider.GetRequiredService<Notifier>();
-
-            using var metricsScheduler = new MetricsReportScheduler();
-            await metricsScheduler.StartAsync();
             
+            var schedulerFactory = serviceProvider.GetRequiredService<ISchedulerFactory>();
+            var scheduler = await schedulerFactory.GetScheduler();
+            await scheduler.Start(cts.Token);
+
+            logger.Information("Quartz Scheduler started");
             await bot.StartPolling();
             await notifier.Start();
             await Task.Delay(Timeout.Infinite, cts.Token);
@@ -54,7 +56,7 @@ public class Program
             Log.CloseAndFlush();
         }
     }
-    
+
     private static async Task UpdateDatabase(IServiceProvider serviceProvider)
     {
         logger.Information("Starting database update...");
