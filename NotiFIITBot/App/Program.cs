@@ -2,13 +2,17 @@
 using Microsoft.Extensions.DependencyInjection;
 using NotiFIITBot.Database.Data;
 using NotiFIITBot.Logging;
+using NotiFIITBot.Metrics;
 using Serilog;
+using Quartz;
+using Quartz.Impl;
 
 namespace NotiFIITBot.App;
 
 public class Program
 {
     private static ILogger logger;
+    private static MetricsReporter? metricsReporter;
 
     public static async Task Main()
     {
@@ -30,6 +34,28 @@ public class Program
             var bot = botScope.ServiceProvider.GetRequiredService<Bot>();
             var notifier = botScope.ServiceProvider.GetRequiredService<Notifier>();
 
+            // для отчетов
+            var schedulerFactory = new StdSchedulerFactory();
+            var scheduler = await schedulerFactory.GetScheduler();
+            await scheduler.Start();
+            
+            // job для генерации отчетов (сам SimpleMetricsJob в reporter)
+            var job = JobBuilder.Create<SimpleMetricsJob>()
+                .WithIdentity("weekly-report-job")
+                .Build();
+            
+            var trigger = TriggerBuilder.Create()
+                .WithIdentity("weekly-report-trigger")
+                .WithSchedule(CronScheduleBuilder.WeeklyOnDayAndHourAndMinute(DayOfWeek.Monday, 0, 5))
+                .StartNow()
+                .Build();
+            
+            await scheduler.ScheduleJob(job, trigger);
+            logger.Information($"Weekly report scheduled. Next run: {trigger.GetNextFireTimeUtc()?.LocalDateTime}");
+            
+            metricsReporter = new MetricsReporter();
+            metricsReporter.GenerateAllReports();
+            
             await bot.StartPolling();
             await notifier.Start();
             await Task.Delay(Timeout.Infinite, cts.Token);
@@ -47,7 +73,7 @@ public class Program
             Log.CloseAndFlush();
         }
     }
-
+    
     private static async Task UpdateDatabase(IServiceProvider serviceProvider)
     {
         logger.Information("Starting database update...");

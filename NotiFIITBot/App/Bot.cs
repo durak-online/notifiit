@@ -11,11 +11,13 @@ using NotiFIITBot.Domain;
 using NotiFIITBot.Repo;
 using System.Text.RegularExpressions;
 using NotiFIITBot.Logging;
+using NotiFIITBot.Metrics;
 
 namespace NotiFIITBot.App;
 
 public partial class Bot : IDisposable
 {
+    private readonly MetricsService metricsService; 
     private readonly TelegramBotClient bot;
     private readonly CancellationTokenSource cts;
     private readonly HttpClient httpClient;
@@ -39,6 +41,7 @@ public partial class Bot : IDisposable
         this.scheduleService = scheduleService;
         this.cts = cts;
         logger = loggerFactory.CreateLogger("BOT");
+        metricsService = new MetricsService(); 
         var proxy = new WebProxy("http://75.56.141.249:8000");
 
         var httpClient = new HttpClient(new HttpClientHandler()
@@ -131,7 +134,8 @@ public partial class Bot : IDisposable
     private async Task HandleCallbackQuery(CallbackQuery cbQuery)
     {
         string? sched = null;
-
+        
+        metricsService.RecordRequest(cbQuery.From.Id, "Inline", null);
         switch (cbQuery.Data)
         {
             case nameof(SchedulePeriod.Today):
@@ -221,6 +225,7 @@ public partial class Bot : IDisposable
                 break;
 
             case "/today":
+                metricsService.RecordRequest(message.From!.Id, "Today", "/today");
                 var todaySched = await GetSchedForPeriodAsync(message.Chat.Id, SchedulePeriod.Today);
                 await bot.SendMessage(
                     message.Chat.Id,
@@ -230,6 +235,7 @@ public partial class Bot : IDisposable
                 break;
 
             case "/tmrw":
+                metricsService.RecordRequest(message.From!.Id, "Tomorrow", "/tmrw");
                 var tomorrowSched = await GetSchedForPeriodAsync(message.Chat.Id, SchedulePeriod.Tomorrow);
                 await bot.SendMessage(
                     message.Chat.Id,
@@ -239,6 +245,7 @@ public partial class Bot : IDisposable
                 break;
 
             case "/week":
+                metricsService.RecordRequest(message.From!.Id, "Week", "/week");
                 var weekSched = await GetSchedForPeriodAsync(message.Chat.Id, SchedulePeriod.Week);
                 await bot.SendMessage(
                     message.Chat.Id,
@@ -248,6 +255,7 @@ public partial class Bot : IDisposable
                 break;
 
             case "/2week":
+                metricsService.RecordRequest(message.From!.Id, "2week", "/2week");
                 var twoWeeksSched = await GetSchedForPeriodAsync(message.Chat.Id, SchedulePeriod.TwoWeeks);
                 await bot.SendMessage(
                     message.Chat.Id,
@@ -420,5 +428,6 @@ public partial class Bot : IDisposable
     public void Dispose()
     {
         httpClient.Dispose();
+        metricsService.Dispose();
     }
 }
