@@ -50,7 +50,7 @@ public static class DiContainer
         {
             var jobKey = new JobKey("WeeklyBackupJob");
 
-            q.AddJob<ScheduledBackupJob>(opts => opts.WithIdentity(jobKey));
+            q.AddJob<BackupService>(opts => opts.WithIdentity(jobKey));
 
             q.AddTrigger(opts => opts
                 .ForJob(jobKey)
@@ -58,7 +58,7 @@ public static class DiContainer
                 // Cron: Секунды Минуты Часы День Месяц ДеньНедели
                 // 0 0 1 ? * MON  -> Каждый понедельник в 01:00:00
                 .WithCronSchedule("0 0 1 ? * MON")); 
-                //.WithCronSchedule("0 * * ? * *"));
+            //.WithCronSchedule("0 * * ? * *"));
         });
 
         services.AddQuartzHostedService(q => q.WaitForJobsToComplete = true);

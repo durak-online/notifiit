@@ -4,22 +4,39 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using NotiFIITBot.Database.Data;
 using NotiFIITBot.Database.Models; 
+using Quartz;
 using Serilog;
 
 namespace NotiFIITBot.Domain;
 
-public class BackupService
+//запрещает одновременный запуск двух бэкапов
+[DisallowConcurrentExecution] 
+public class BackupService : IJob
 {
     private readonly IServiceScopeFactory scopeFactory;
-    private readonly ILogger backupLogger; 
     private readonly ILogger baseLogger;   
-    private const string BackupFolder = "backups";
+    private readonly ILogger backupLogger; 
+    
+    private static string BackupFolder = "backups";
 
     public BackupService(IServiceScopeFactory scopeFactory, ILogger logger)
     {
         this.scopeFactory = scopeFactory;
         baseLogger = logger;
         backupLogger = logger.ForContext("SourceContext", "BACKUP");
+    }
+
+    public async Task Execute(IJobExecutionContext context)
+    {
+        backupLogger.Information("Starting scheduled backup...");
+        try
+        {
+            await CreateBackupAsync();
+        }
+        catch (Exception ex)
+        {
+            backupLogger.Error(ex, "Error executing backup job");
+        }
     }
 
     public async Task CreateBackupAsync()
@@ -53,7 +70,6 @@ public class BackupService
         }
     }
 
-    // Восстанавливает данные из соединенного файлв
     public async Task RestoreBackupAsync(string fileName)
     {
         var restoreLog = baseLogger.ForContext("SourceContext", "RESTORE");
