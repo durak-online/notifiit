@@ -1,5 +1,6 @@
 ﻿using System.Globalization;
 using System.Text;
+using NotiFIITBot.Logging;
 using Quartz;
 using Serilog;
 
@@ -8,14 +9,16 @@ namespace NotiFIITBot.Metrics;
 
 public class MetricsReporter
 {
-    private readonly string _metricsDirectory;
-    private readonly char _separator = ';';
+    private readonly string metricsDirectory;
+    private readonly char separator = ';';
+    private readonly ILogger logger;
     
-    public MetricsReporter()
+    public MetricsReporter(ILoggerFactory loggerFactory)
     {
-        _metricsDirectory = Path.Combine(AppContext.BaseDirectory, "metrics");
-        Directory.CreateDirectory(_metricsDirectory);
-        Log.Information($"Metrics reporter initialized. Directory: {_metricsDirectory}");
+        logger = loggerFactory.CreateLogger("Metrics");
+        metricsDirectory = Path.Combine(AppContext.BaseDirectory, "metrics");
+        Directory.CreateDirectory(metricsDirectory);
+        logger.Information("Metrics reporter initialized. Directory: {Directory}", metricsDirectory);
     }
     
     public void GenerateWeeklyReport()
@@ -29,7 +32,7 @@ public class MetricsReporter
         }
         catch (Exception ex)
         {
-            Log.Error(ex, "Error generating weekly report");
+            logger.Fatal(ex, "Error generating weekly report");
         }
     }
     
@@ -43,13 +46,13 @@ public class MetricsReporter
         {
             var weekEnd = weekStart.AddDays(7);
             
-            Log.Information($"Generating weekly report for {weekStart:yyyy-MM-dd} - {weekEnd:yyyy-MM-dd}");
+            logger.Information($"Generating weekly report for {weekStart:yyyy-MM-dd} - {weekEnd:yyyy-MM-dd}");
             
             var allRequests = LoadWeeklyRequests(weekStart, weekEnd);
             
             if (!allRequests.Any())
             {
-                Log.Information("No data for weekly report");
+                logger.Information("No data for weekly report");
                 return;
             }
             
@@ -57,19 +60,19 @@ public class MetricsReporter
             
             SaveReport(report, weekStart);
             
-            Log.Information($"Weekly report saved: {report.TotalRequests} requests, {report.UniqueUsers} users");
+            logger.Information($"Weekly report saved: {report.TotalRequests} requests, {report.UniqueUsers} users");
         }
         catch (Exception ex)
         {
-            Log.Error(ex, $"Error generating report for week starting {weekStart:yyyy-MM-dd}");
+            logger.Error(ex, $"Error generating report for week starting {weekStart:yyyy-MM-dd}");
         }
     }
     
     public void GenerateAllReports()
     {
-        Log.Information("Generating reports for all available weeks");
+        logger.Information("Generating reports for all available weeks");
         
-        var dailyFiles = Directory.GetFiles(_metricsDirectory, "requests_*.csv");
+        var dailyFiles = Directory.GetFiles(metricsDirectory, "requests_*.csv");
         var dates = dailyFiles
             .Select(f => Path.GetFileName(f).Replace("requests_", "").Replace(".csv", ""))
             .Where(d => DateTime.TryParseExact(d, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out _))
@@ -79,7 +82,7 @@ public class MetricsReporter
         
         if (!dates.Any())
         {
-            Log.Information("No daily files found");
+            logger.Information("No daily files found");
             return;
         }
         
@@ -101,7 +104,7 @@ public class MetricsReporter
         
         for (var date = weekStart; date < weekEnd; date = date.AddDays(1))
         {
-            var dailyFile = Path.Combine(_metricsDirectory, $"requests_{date:yyyy-MM-dd}.csv");
+            var dailyFile = Path.Combine(metricsDirectory, $"requests_{date:yyyy-MM-dd}.csv");
             
             if (File.Exists(dailyFile))
             {
@@ -144,14 +147,14 @@ public class MetricsReporter
                     }
                     catch (Exception ex)
                     {
-                        Log.Warning($"Failed to parse line {i} in {filePath}: {ex.Message}");
+                        logger.Warning($"Failed to parse line {i} in {filePath}: {ex.Message}");
                     }
                 }
             }
         }
         catch (Exception ex)
         {
-            Log.Error(ex, $"Error loading metrics from {filePath}");
+            logger.Error(ex, $"Error loading metrics from {filePath}");
         }
         
         return requests;
@@ -179,7 +182,7 @@ public class MetricsReporter
                     inQuotes = !inQuotes;
                 }
             }
-            else if (c == _separator && !inQuotes)
+            else if (c == separator && !inQuotes)
             {
                 fields.Add(currentField.ToString());
                 currentField.Clear();
@@ -243,7 +246,7 @@ public class MetricsReporter
         
         for (var date = weekStart; date < weekEnd; date = date.AddDays(1))
         {
-            var dailyFile = Path.Combine(_metricsDirectory, $"requests_{date:yyyy-MM-dd}.csv");
+            var dailyFile = Path.Combine(metricsDirectory, $"requests_{date:yyyy-MM-dd}.csv");
             if (File.Exists(dailyFile))
             {
                 var dailyRequests = LoadDailyMetrics(dailyFile);
@@ -265,7 +268,7 @@ public class MetricsReporter
     
     private void SaveReport(WeeklyReport report, DateTime weekStart)
     {
-        var reportFile = Path.Combine(_metricsDirectory, $"weekly_report_{weekStart:yyyy-MM-dd}.csv");
+        var reportFile = Path.Combine(metricsDirectory, $"weekly_report_{weekStart:yyyy-MM-dd}.csv");
         
         try
         {
@@ -275,28 +278,28 @@ public class MetricsReporter
                 writer.WriteLine($"{report.WeekStart:dd.MM.yyyy} - {report.WeekEnd:dd.MM.yyyy}");
                 writer.WriteLine();
                 
-                writer.WriteLine($"Метрика{_separator}Значение");
-                writer.WriteLine($"Количество запросов расписания{_separator}{report.TotalRequests}");
+                writer.WriteLine($"Метрика{separator}Значение");
+                writer.WriteLine($"Количество запросов расписания{separator}{report.TotalRequests}");
                 writer.WriteLine();
                 
-                writer.WriteLine($"Уникальных пользователей за неделю{_separator}{report.UniqueUsers}");
-                writer.WriteLine($"Новых пользователей{_separator}{report.NewUsers}");
+                writer.WriteLine($"Уникальных пользователей за неделю{separator}{report.UniqueUsers}");
+                writer.WriteLine($"Новых пользователей{separator}{report.NewUsers}");
                 
                 if (report.RetainedUsers.HasValue)
                 {
-                    writer.WriteLine($"Вернувшихся пользователей{_separator}{report.RetainedUsers}");
-                    writer.WriteLine($"Процент удержания{_separator}{report.UserRetentionRate:F1}%");
+                    writer.WriteLine($"Вернувшихся пользователей{separator}{report.RetainedUsers}");
+                    writer.WriteLine($"Процент удержания{separator}{report.UserRetentionRate:F1}%");
                 }
                 writer.WriteLine();
                 
                 writer.WriteLine("Распределение по типам");
-                writer.WriteLine($"Тип запроса{_separator}Количество{_separator}Процент");
+                writer.WriteLine($"Тип запроса{separator}Количество{separator}Процент");
                 
                 foreach (var kvp in report.RequestsByType.OrderByDescending(x => x.Value))
                 {
                     var percentage = (double)kvp.Value / report.TotalRequests * 100;
                     var requestTypeName = GetRequestTypeName(kvp.Key);
-                    writer.WriteLine($"{requestTypeName}{_separator}{kvp.Value}{_separator}{percentage:F1}%");
+                    writer.WriteLine($"{requestTypeName}{separator}{kvp.Value}{separator}{percentage:F1}%");
                 }
                 writer.WriteLine();
                 
@@ -304,21 +307,21 @@ public class MetricsReporter
                 if (report.PopularCommands.Any())
                 {
                     writer.WriteLine("Популярные команды");
-                    writer.WriteLine($"Команда{_separator}Количество использований{_separator}Процент");
+                    writer.WriteLine($"Команда{separator}Количество использований{separator}Процент");
                     
                     foreach (var kvp in report.PopularCommands.Take(10))
                     {
                         var percentage = (double)kvp.Value / report.TotalRequests * 100;
-                        writer.WriteLine($"{kvp.Key}{_separator}{kvp.Value}{_separator}{percentage:F1}%");
+                        writer.WriteLine($"{kvp.Key}{separator}{kvp.Value}{separator}{percentage:F1}%");
                     }
                 }
             }
             
-            Log.Information($"Report saved to: {reportFile}");
+            logger.Information($"Report saved to: {reportFile}");
         }
         catch (Exception ex)
         {
-            Log.Error(ex, "Failed to save report");
+            logger.Error(ex, "Failed to save report");
         }
     }
     
@@ -352,4 +355,58 @@ public class WeeklyReport
     public int NewUsers { get; set; }                      
     public Dictionary<string, int> RequestsByType { get; set; } = new(); // Распределение по типам запросов
     public Dictionary<string, int> PopularCommands { get; set; } = new(); // Популярные команды
+}
+
+public class WeeklyMetricsJob : IJob
+{
+    private readonly MetricsReporter metricsReporter;
+    private readonly ILogger logger;
+
+    public WeeklyMetricsJob(MetricsReporter metricsReporter, ILoggerFactory logger)
+    {
+        this.metricsReporter = metricsReporter;
+        this.logger = logger.CreateLogger("Metrics");
+    }
+    public Task Execute(IJobExecutionContext context)
+    {
+        try
+        {
+            logger.Information("Starting weekly metrics report generation...");
+            metricsReporter.GenerateWeeklyReport();
+            logger.Information("Weekly metrics report generated successfully");
+        }
+        catch (Exception ex)
+        {
+            logger.Error(ex, "Error executing weekly metrics report job");
+        }
+        
+        return Task.CompletedTask;
+    }
+}
+
+public class InitialMetricsJob : IJob
+{
+    private readonly MetricsReporter metricsReporter;
+    private readonly ILogger logger;
+
+    public InitialMetricsJob(MetricsReporter metricsReporter,  ILoggerFactory logger)
+    {
+        this.metricsReporter = metricsReporter;
+        this.logger = logger.CreateLogger("Metrics");
+    }
+    public Task Execute(IJobExecutionContext context)
+    {
+        try
+        {
+            logger.Information("Starting initial generation of all metrics reports...");
+            metricsReporter.GenerateAllReports();
+            logger.Information("All metrics reports generated successfully");
+        }
+        catch (Exception ex)
+        {
+            logger.Error(ex, "Error executing initial metrics reports job");
+        }
+        
+        return Task.CompletedTask;
+    }
 }

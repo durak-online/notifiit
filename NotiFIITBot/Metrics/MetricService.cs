@@ -1,4 +1,5 @@
 ﻿using System.Globalization;
+using NotiFIITBot.Logging;
 using Serilog;
 
 namespace NotiFIITBot.Metrics;
@@ -11,12 +12,15 @@ public class MetricsService : IDisposable
     private readonly Dictionary<string, int> weeklyRequests = new();
     private DateTime currentWeekStart;
     private readonly char separator = ';';
-    
-    public MetricsService()
+    private readonly ILogger logger;
+
+
+    public MetricsService(ILoggerFactory loggerFactory)
     {
+        logger = loggerFactory.CreateLogger("Metrics");  
         metricsDirectory = Path.Combine(AppContext.BaseDirectory, "metrics");
         Directory.CreateDirectory(metricsDirectory);
-        Console.WriteLine($"Metrics directory created: {metricsDirectory}");
+        logger.Information("Metrics service initialized. Directory: {Directory}", metricsDirectory); 
         
         currentWeekStart = GetWeekStart(DateTime.UtcNow);
         LoadExistingData();
@@ -60,7 +64,7 @@ public class MetricsService : IDisposable
         }
         catch (Exception ex)
         {
-            Log.Error(ex, "Failed to load metrics data");
+            logger.Error(ex, "Failed to load metrics data");
         }
     }
     
@@ -173,7 +177,7 @@ public class MetricsService : IDisposable
         catch (Exception ex)
         {
             Console.WriteLine("Failed to write detailed metrics request");
-            Log.Error(ex, "Failed to write detailed metrics request");
+            logger.Error(ex, "Failed to write detailed metrics request");
         }
     }
     
@@ -193,7 +197,7 @@ public class MetricsService : IDisposable
         }
         catch (Exception ex)
         {
-            Log.Error(ex, "Failed to save weekly metrics");
+            logger.Error(ex, "Failed to save weekly metrics");
         }
     }
     

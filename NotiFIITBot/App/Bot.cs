@@ -34,14 +34,14 @@ public partial class Bot : IDisposable
     private readonly ScheduleService scheduleService;
 
     public Bot(IUserRepository userRepository, IScheduleRepository scheduleRepository,
-        ScheduleService scheduleService, CancellationTokenSource cts, ILoggerFactory loggerFactory)
+        ScheduleService scheduleService, CancellationTokenSource cts, ILoggerFactory loggerFactory,  MetricsService metricsService)
     {
         this.userRepository = userRepository;
         this.scheduleRepository = scheduleRepository;
         this.scheduleService = scheduleService;
         this.cts = cts;
         logger = loggerFactory.CreateLogger("BOT");
-        metricsService = new MetricsService(); 
+        this.metricsService = metricsService; 
         var proxy = new WebProxy("http://75.56.141.249:8000");
 
         var httpClient = new HttpClient(new HttpClientHandler()
@@ -428,6 +428,5 @@ public partial class Bot : IDisposable
     public void Dispose()
     {
         httpClient.Dispose();
-        metricsService.Dispose();
     }
 }

@@ -6,6 +6,7 @@ using NotiFIITBot.Consts;
 using Serilog;
 using NotiFIITBot.Domain;
 using NotiFIITBot.Logging;
+using NotiFIITBot.Metrics;
 using Quartz;
 
 namespace NotiFIITBot.App;
@@ -41,6 +42,9 @@ public static class DiContainer
 
         services.AddScoped<Bot>();
         services.AddScoped<Notifier>();
+        
+        services.AddSingleton<MetricsService>();
+        services.AddTransient<MetricsReporter>();
 
         services.AddSingleton<CancellationTokenSource>();
 
@@ -59,6 +63,20 @@ public static class DiContainer
                 // 0 0 1 ? * MON  -> Каждый понедельник в 01:00:00
                 .WithCronSchedule("0 0 1 ? * MON")); 
             //.WithCronSchedule("0 * * ? * *"));
+            
+            var weeklyMetricsJobKey = new JobKey("WeeklyMetricsJob");
+            q.AddJob<WeeklyMetricsJob>(opts => opts.WithIdentity(weeklyMetricsJobKey));
+            q.AddTrigger(opts => opts
+                .ForJob(weeklyMetricsJobKey)
+                .WithIdentity("WeeklyMetricsTrigger")
+                .WithCronSchedule("0 5 0 ? * MON"));
+
+            var initialMetricsJobKey = new JobKey("InitialMetricsJob");
+            q.AddJob<InitialMetricsJob>(opts => opts.WithIdentity(initialMetricsJobKey));
+            q.AddTrigger(opts => opts
+                .ForJob(initialMetricsJobKey)
+                .WithIdentity("InitialMetricsTrigger")
+                .StartNow());
         });
 
         services.AddQuartzHostedService(q => q.WaitForJobsToComplete = true);
