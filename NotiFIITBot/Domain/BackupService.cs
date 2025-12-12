@@ -17,7 +17,8 @@ public class BackupService : IJob
     private readonly ILogger baseLogger;   
     private readonly ILogger backupLogger; 
     
-    private static string BackupFolder = "backups";
+    private static readonly string BackupFolder = "backups";
+    private const int MaxBackupsToKeep = 4;
 
     public BackupService(IServiceScopeFactory scopeFactory, ILogger logger)
     {
@@ -62,11 +63,41 @@ public class BackupService : IJob
             await SaveToFileAsync(backupData, fileName);
 
             backupLogger.Information($"Backup created successfully: {fileName}");
+            
+            CleanUpOldBackups();
         }
         catch (Exception ex)
         {
             backupLogger.Error(ex, "Failed to create backup");
             throw; 
+        }
+    }
+    
+    /// Удаляет старые бэкапы, оставляет только последние N (решили, что 4) штук.
+    private void CleanUpOldBackups()
+    {
+        try
+        {
+            var directoryInfo = new DirectoryInfo(BackupFolder);
+            
+            var files = directoryInfo.GetFiles("full_backup_*.json")
+                .OrderByDescending(f => f.CreationTime)
+                .ToList();
+
+            if (files.Count <= MaxBackupsToKeep)
+                return;
+
+            var filesToDelete = files.Skip(MaxBackupsToKeep);
+
+            foreach (var file in filesToDelete)
+            {
+                file.Delete();
+                backupLogger.Information($"Deleted old backup: {file.Name}");
+            }
+        }
+        catch (Exception ex)
+        {
+            backupLogger.Warning(ex, "Failed to clean up old backups");
         }
     }
 
