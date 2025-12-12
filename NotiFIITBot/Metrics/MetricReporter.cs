@@ -353,21 +353,3 @@ public class WeeklyReport
     public Dictionary<string, int> RequestsByType { get; set; } = new(); // Распределение по типам запросов
     public Dictionary<string, int> PopularCommands { get; set; } = new(); // Популярные команды
 }
-public class SimpleMetricsJob : IJob
-{
-    public Task Execute(IJobExecutionContext context)
-    {
-        try
-        {
-            Log.Information("Generating weekly metrics report...");
-            var reporter = new MetricsReporter();
-            reporter.GenerateWeeklyReport();
-        }
-        catch (Exception ex)
-        {
-            Log.Error(ex, "Failed to generate weekly report");
-        }
-        
-        return Task.CompletedTask;
-    }
-}
