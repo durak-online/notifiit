@@ -6,6 +6,7 @@ using NotiFIITBot.Consts;
 using Serilog;
 using NotiFIITBot.Domain;
 using NotiFIITBot.Logging;
+using Quartz;
 
 namespace NotiFIITBot.App;
 
@@ -29,6 +30,7 @@ public static class DiContainer
         }, ServiceLifetime.Transient);
 
         services.AddSingleton(Log.Logger);
+        services.AddLogging(loggingBuilder => loggingBuilder.AddSerilog());
         services.AddSingleton<ILoggerFactory, LoggerFactory>();
 
         services.AddScoped<IUserRepository, UserRepository>();
@@ -42,7 +44,25 @@ public static class DiContainer
 
         services.AddSingleton<CancellationTokenSource>();
 
+        services.AddSingleton<BackupService>();
 
+        services.AddQuartz(q =>
+        {
+            var jobKey = new JobKey("WeeklyBackupJob");
+
+            q.AddJob<ScheduledBackupJob>(opts => opts.WithIdentity(jobKey));
+
+            q.AddTrigger(opts => opts
+                .ForJob(jobKey)
+                .WithIdentity("WeeklyBackupTrigger")
+                // Cron: Секунды Минуты Часы День Месяц ДеньНедели
+                // 0 0 1 ? * MON  -> Каждый понедельник в 01:00:00
+                .WithCronSchedule("0 0 1 ? * MON")); 
+                //.WithCronSchedule("0 * * ? * *"));
+        });
+
+        services.AddQuartzHostedService(q => q.WaitForJobsToComplete = true);
+        
         return services.BuildServiceProvider();
     }
 
@@ -53,6 +73,8 @@ public static class DiContainer
 
         Log.Logger = new LoggerConfiguration()
             .Enrich.FromLogContext()
+            .MinimumLevel.Override("Microsoft", Serilog.Events.LogEventLevel.Warning)
+            .MinimumLevel.Override("Microsoft.EntityFrameworkCore", Serilog.Events.LogEventLevel.Warning)
             .WriteTo.Console(outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] [{SourceContext}] {Message:lj}{NewLine}{Exception}")
             .WriteTo.File(
                 $"logs/bot-{DateTime.Now:yyyy-MM-dd}.log",
