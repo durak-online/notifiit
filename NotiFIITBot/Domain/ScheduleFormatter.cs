@@ -22,7 +22,7 @@ public class ScheduleFormatter
         var strBuilder = new StringBuilder();
         
         var day = lessons[0].DayOfWeek;
-        strBuilder.Append($" {Emoji.Calendar} {DayOfWeekInRus(lessons[0].DayOfWeek)}:\n\n");
+        strBuilder.Append($" {Emoji.Calendar} {DayOfWeekInRus(day)}:\n\n");
         
         if (!lessons.Any())
         {
