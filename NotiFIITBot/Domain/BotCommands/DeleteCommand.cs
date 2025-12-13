@@ -41,7 +41,7 @@ public class DeleteCommand(BotMessageService botService, IUserRepository userRep
                 return true;
 
             // подсказка
-            Task.Run(() => botService.SendMessage(message.Chat.Id, "Кодманда используется как /delete *tg ID*"));
+            Task.Run(() => botService.SendMessage(message.Chat.Id, "Команда используется как /delete *tg ID*"));
         }
         return false;
     }

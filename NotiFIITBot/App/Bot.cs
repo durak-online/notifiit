@@ -39,10 +39,12 @@ public partial class Bot(
 
     public async Task StartPolling()
     {
+        var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+        var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(timeoutCts.Token, cts.Token);
+
         try
         {
-            using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
-            var info = await botService.GetBotInfo();
+            var info = await botService.GetBotInfo(linkedCts.Token);
             logger.Information($"Bot {info} started to work");
 
             var receiverOptions = new ReceiverOptions
@@ -56,15 +58,25 @@ public partial class Bot(
                 HandleUpdate,
                 HandlePollingError,
                 receiverOptions,
-                cts.Token
+                linkedCts.Token
             );
 
             logger.Information("Bot is now receiving updates...");
+        }
+        catch (OperationCanceledException)
+        {
+            logger.Error("Bot startup timed out after 30 seconds");
+            throw;
         }
         catch (Exception ex)
         {
             logger.Fatal($"Can't initialize bot: {ex}");
             throw;
+        }
+        finally
+        {
+            timeoutCts.Dispose();
+            linkedCts.Dispose();
         }
     }
 

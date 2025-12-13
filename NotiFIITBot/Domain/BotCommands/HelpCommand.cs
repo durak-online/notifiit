@@ -1,10 +1,44 @@
-﻿using Telegram.Bot.Types;
+﻿using Microsoft.Extensions.DependencyInjection;
+using System.Text;
+using Telegram.Bot.Types;
 
 namespace NotiFIITBot.Domain.BotCommands;
 
-public class HelpCommand(BotMessageService botService, Lazy<IEnumerable<IBotCommand>> commands) : BaseCommand(botService)
+public class HelpCommand : BaseCommand
 {
-    private readonly Lazy<IEnumerable<IBotCommand>> commands = commands;
+    private readonly string commonHelpMessage;
+    private readonly string adminHelpMessage;
+
+    public HelpCommand(BotMessageService botService, IServiceProvider serviceProvider) : base(botService)
+    {
+        var commands = serviceProvider.GetRequiredService<IEnumerable<IBotCommand>>();
+
+        var commonCommands = commands
+            .Where(c => !c.IsAdminCommand)
+            .OrderBy(c => c.Name);
+        var adminCommands = commands
+            .Where(c => c.IsAdminCommand)
+            .OrderBy(c => c.Name);
+
+        var strBuilder = new StringBuilder();
+        strBuilder.Append("<b>Доступные команды:</b>\n\n");
+
+        
+        foreach (var command in commonCommands)
+        {
+            if (command.Name != "" && command.Description != "")
+                strBuilder.Append($"• {command.Name} - {command.Description}\n");
+        }
+        commonHelpMessage = strBuilder.ToString();
+
+        strBuilder.Append("\n<b>АДМИНСКИЕ КОМАНДЫ</b>\n\n");
+        foreach (var command in adminCommands)
+        {
+            if (command.Name != "" && command.Description != "")
+                strBuilder.Append($"• {command.Name} - {command.Description}\n");
+        }
+        adminHelpMessage = strBuilder.ToString();
+    }
 
     public override string Name => "/help";
 
@@ -14,18 +48,11 @@ public class HelpCommand(BotMessageService botService, Lazy<IEnumerable<IBotComm
 
     public override async Task RunCommand(Message message)
     {
-        var helpText = "<b>Доступные команды:</b>\n\n";
-
         var isAdmin = IsAdmin(message.From!);
 
-        foreach (var command in commands.Value)
-        {
-            if (command.IsAdminCommand && !isAdmin)
-                continue;
-            if (command.Name != "" && command.Description != "")
-                helpText += $"• {command.Name} - {command.Description}\n";
-        }
-
-        await botService.SendMessage(message.Chat.Id, helpText);
+        if (isAdmin)
+            await botService.SendMessage(message.Chat.Id, adminHelpMessage);
+        else
+            await botService.SendMessage(message.Chat.Id, commonHelpMessage);
     }
 }

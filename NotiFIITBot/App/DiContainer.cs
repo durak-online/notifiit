@@ -73,13 +73,10 @@ public static class DiContainer
         var commandTypes = Assembly.GetExecutingAssembly()
                     .GetTypes()
                     .Where(t => typeof(IBotCommand).IsAssignableFrom(t) 
-                    && !t.IsAbstract 
-                    && t != typeof(HelpCommand));
+                    && !t.IsAbstract);
         foreach (var type in commandTypes)
-            services.AddSingleton(typeof(IBotCommand), type);
+            services.AddScoped(typeof(IBotCommand), type);
 
-        // иначе там рекурсия
-        services.AddSingleton<HelpCommand>();
         services.AddScoped<BotCommandManager>();
     }
 

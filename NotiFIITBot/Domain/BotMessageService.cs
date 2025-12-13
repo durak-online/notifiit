@@ -37,9 +37,9 @@ public class BotMessageService(ITelegramBotClient botClient, CancellationTokenSo
         await botClient.AnswerCallbackQuery(callbackQuery.Id, cancellationToken: cts.Token);
     }
 
-    public async Task<User> GetBotInfo()
+    public async Task<User> GetBotInfo(CancellationToken cancellationToken)
     {
-        return await botClient.GetMe();
+        return await botClient.GetMe(cancellationToken: cancellationToken);
     }
 
     public ITelegramBotClient GetTelegramBot()
