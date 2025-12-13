@@ -2,7 +2,7 @@
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using NotiFIITBot.Database.Data;
-using NotiFIITBot.Database.Repo;
+using NotiFIITBot.Repo;
 using NotiFIITBot.Domain;
 
 namespace NotiFIITBot.Tests;
