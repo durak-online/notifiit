@@ -1,23 +1,53 @@
-using NotiFIITBot.Consts;
+﻿using NotiFIITBot.Consts;
+using NotiFIITBot.Logging;
 using NotiFIITBot.Repo;
+using Serilog;
+using System.Text;
 
 namespace NotiFIITBot.Domain;
 
-public class ScheduleService
+public class ScheduleService(IScheduleRepository scheduleRepository, IUserRepository userRepository,
+    ILoggerFactory loggerFactory)
 {
-    private readonly IScheduleRepository _repo;
+    private readonly IScheduleRepository scheduleRepository = scheduleRepository;
+    private readonly IUserRepository userRepository = userRepository;
+    private readonly ILogger logger = loggerFactory.CreateLogger("SCHED_SERV");
 
-    public ScheduleService(IScheduleRepository repo)
+    public async Task<string> GetSchedForPeriodAsync(long userId, SchedulePeriod period)
     {
-        _repo = repo;
+        try
+        {
+            var user = await userRepository.FindUserAsync(userId);
+            if (user == null)
+                return "Ты еще не зарегестрирован в базе данных";
+
+            var scheduleDays = await GetFormattedScheduleAsync(user.MenGroup, user.SubGroup, period);
+            if (scheduleDays == null || scheduleDays.Count == 0)
+            {
+                return $"Пар для группы МЕН-{user.MenGroup}-{user.SubGroup} нет 🎉";
+            }
+
+            var strBuilder = new StringBuilder();
+
+            foreach (var (date, lessons) in scheduleDays)
+                strBuilder.Append(Formatter.FormatLessons(date, lessons));
+            
+
+            return strBuilder.ToString();
+        }
+        catch (Exception ex)
+        {
+            logger.Error(ex, "Error while getting schedule from DB");
+            return "Произошла ошибка при получении данных из базы";
+        }
     }
 
-    public async Task<List<(DateOnly Date, List<Lesson> Lessons)>> GetFormattedScheduleAsync(
+    private async Task<List<(DateOnly Date, List<Lesson> Lessons)>> GetFormattedScheduleAsync(
         int groupNumber, 
         int? subGroup, 
         SchedulePeriod period)
     {
-        var models = await _repo.GetScheduleAsync(groupNumber, subGroup, period);
+        var models = await scheduleRepository.GetScheduleAsync(groupNumber, subGroup, period);
 
         var today = DateOnly.FromDateTime(DateTime.Now);
         DateOnly startDay;

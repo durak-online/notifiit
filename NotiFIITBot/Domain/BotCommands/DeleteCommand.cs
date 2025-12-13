@@ -1,0 +1,48 @@
+﻿using NotiFIITBot.Repo;
+using Telegram.Bot.Types;
+
+namespace NotiFIITBot.Domain.BotCommands;
+
+public class DeleteCommand(BotMessageService botService, IUserRepository userRepository) : BaseCommand(botService)
+{
+    private readonly IUserRepository userRepository = userRepository;
+
+    public override string Name => "/delete";
+
+    public override string Description => "Удалить юзера с данным tg_id из базы данных";
+
+    public override bool IsAdminCommand => true;
+
+    public override async Task RunCommand(Message message)
+    {
+        if (long.TryParse(message.Text!.Split()[1], out var userToDeleteId))
+        {
+            await userRepository.DeleteUserAsync(userToDeleteId);
+            await botService.SendMessage(
+                message.Chat.Id,
+                "Юзер был успешно удален из базы данных"
+            );
+        }
+        else
+        {
+            await botService.SendMessage(
+                message.Chat.Id,
+                "Юзер не был удален из базы данных, неверно введен ID.\n" +
+                "Допускаются только цифры, нужен tg ID юзера"
+            );
+        }
+    }
+
+    public override bool CanRun(Message message)
+    {
+        if (IsAdmin(message.From!) && base.CanRun(message))
+        {
+            if (message.Text!.Split().Length == 2)
+                return true;
+
+            // подсказка
+            Task.Run(() => botService.SendMessage(message.Chat.Id, "Кодманда используется как /delete *tg ID*"));
+        }
+        return false;
+    }
+}

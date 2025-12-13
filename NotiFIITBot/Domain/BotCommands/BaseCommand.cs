@@ -1,0 +1,27 @@
+﻿using NotiFIITBot.Consts;
+using Telegram.Bot.Types;
+
+namespace NotiFIITBot.Domain.BotCommands;
+
+public abstract class BaseCommand(BotMessageService botService) : IBotCommand
+{
+    protected readonly BotMessageService botService = botService;
+
+    public abstract string Name { get; }
+
+    public abstract string Description { get; }
+    public abstract bool IsAdminCommand { get; }
+
+    public abstract Task RunCommand(Message message);
+
+    public virtual bool CanRun(Message message)
+    {
+        return message.Text != null && message.Text.Contains(Name);
+    }
+
+    protected static bool IsAdmin(User user)
+    {
+        // TODO добавить админов
+        return user.Id == EnvReader.CreatorId;
+    }
+}
