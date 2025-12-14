@@ -1,4 +1,5 @@
-﻿using NotiFIITBot.Consts;
+﻿using System.Linq;
+using NotiFIITBot.Consts;
 using Quartz;
 
 namespace NotiFIITBot.App;
@@ -54,6 +55,6 @@ public class NotificationJob : IJob
 
     private Task<long[]> GetUserIds()
     {
-        return Task.FromResult(new long[] { EnvReader.CreatorId });
+        return Task.FromResult(AdminsConfig.AdminIds.ToArray());
     }
 }
