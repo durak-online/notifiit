@@ -10,7 +10,6 @@ internal static class EnvReader
         var variables = DotEnv.Read();
 
         BotToken = variables["TELEGRAM_BOT_TOKEN"];
-        CreatorId = long.Parse(variables["CREATOR_ID"]);
 
         PostgresUser = variables["POSTGRES_USER"];
         PostgresPassword = variables["POSTGRES_PASSWORD"];
@@ -23,7 +22,6 @@ internal static class EnvReader
     }
 
     public static string BotToken { get; }
-    public static long CreatorId { get; }
 
     public static string PostgresUser { get; }
     public static string PostgresPassword { get; }

@@ -21,7 +21,6 @@ public abstract class BaseCommand(BotMessageService botService) : IBotCommand
 
     protected static bool IsAdmin(User user)
     {
-        // TODO добавить админов
-        return user.Id == EnvReader.CreatorId;
+        return AdminsConfig.AdminIds.Contains(user.Id);
     }
 }
