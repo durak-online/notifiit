@@ -11,7 +11,7 @@ public class StopCommand(BotMessageService botService, CancellationTokenSource c
 
     public override string Name => "/stop";
 
-    public override string Description => "Пишет справку по всем командам";
+    public override string Description => "Останавливает бота и всё приложение в целом";
 
     public override bool IsAdminCommand => true;
 

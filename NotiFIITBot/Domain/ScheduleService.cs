@@ -24,6 +24,11 @@ public class ScheduleService(IScheduleRepository scheduleRepository, IUserReposi
             var scheduleDays = await GetFormattedScheduleAsync(user.MenGroup, user.SubGroup, period);
             if (scheduleDays == null || scheduleDays.Count == 0)
             {
+                if (period == SchedulePeriod.Today)
+                    return $"Пар для группы МЕН-{user.MenGroup}-{user.SubGroup} на сегодня нет 🎉";
+                else if (period == SchedulePeriod.Tomorrow)
+                    return $"Пар для группы МЕН-{user.MenGroup}-{user.SubGroup} на завтра нет 🎉";
+
                 return $"Пар для группы МЕН-{user.MenGroup}-{user.SubGroup} нет 🎉";
             }
 

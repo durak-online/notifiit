@@ -4,12 +4,33 @@ using Telegram.Bot.Types;
 
 namespace NotiFIITBot.Domain.BotCommands;
 
-public class HelpCommand : BaseCommand
+public class HelpCommand(BotMessageService botService, IServiceProvider serviceProvider) : BaseCommand(botService)
 {
-    private readonly string commonHelpMessage;
-    private readonly string adminHelpMessage;
+    private string commonHelpMessage;
+    private string adminHelpMessage;
 
-    public HelpCommand(BotMessageService botService, IServiceProvider serviceProvider) : base(botService)
+    private bool isComputed = false;
+
+    public override string Name => "/help";
+
+    public override string Description => "Пишет справку по всем командам";
+
+    public override bool IsAdminCommand => false;
+
+    public override async Task RunCommand(Message message)
+    {
+        if (!isComputed)
+            ComputeHelpMessages();
+
+        var isAdmin = IsAdmin(message.From!);
+
+        if (isAdmin)
+            await botService.SendMessage(message.Chat.Id, adminHelpMessage);
+        else
+            await botService.SendMessage(message.Chat.Id, commonHelpMessage);
+    }
+
+    private void ComputeHelpMessages()
     {
         var commands = serviceProvider.GetRequiredService<IEnumerable<IBotCommand>>();
 
@@ -23,7 +44,7 @@ public class HelpCommand : BaseCommand
         var strBuilder = new StringBuilder();
         strBuilder.Append("<b>Доступные команды:</b>\n\n");
 
-        
+
         foreach (var command in commonCommands)
         {
             if (command.Name != "" && command.Description != "")
@@ -38,21 +59,7 @@ public class HelpCommand : BaseCommand
                 strBuilder.Append($"• {command.Name} - {command.Description}\n");
         }
         adminHelpMessage = strBuilder.ToString();
-    }
 
-    public override string Name => "/help";
-
-    public override string Description => "Пишет справку по всем командам";
-
-    public override bool IsAdminCommand => false;
-
-    public override async Task RunCommand(Message message)
-    {
-        var isAdmin = IsAdmin(message.From!);
-
-        if (isAdmin)
-            await botService.SendMessage(message.Chat.Id, adminHelpMessage);
-        else
-            await botService.SendMessage(message.Chat.Id, commonHelpMessage);
+        isComputed = true;
     }
 }
