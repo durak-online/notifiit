@@ -132,7 +132,7 @@ public partial class Bot(
     private async Task HandleCallbackQuery(CallbackQuery cbQuery)
     {
         var sched = "Произошла ошибка при получении расписания";
-        metricsService.RecordRequest(cbQuery.From.Id, "Inline", null);
+        metricsService.RecordRequest(cbQuery.From.Id, "Inline", cbQuery.Data);
 
         try
         {

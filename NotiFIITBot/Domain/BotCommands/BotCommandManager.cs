@@ -1,10 +1,12 @@
-﻿using Telegram.Bot.Types;
+﻿using NotiFIITBot.Metrics;
+using Telegram.Bot.Types;
 
 namespace NotiFIITBot.Domain.BotCommands;
 
-public class BotCommandManager(IEnumerable<IBotCommand> commands)
+public class BotCommandManager(IEnumerable<IBotCommand> commands, MetricsService metricsService)
 {
     private readonly IEnumerable<IBotCommand> commands = commands;
+    private readonly MetricsService metricsService = metricsService;
 
     public async Task<bool> TryExecuteCommand(Message message)
     {
@@ -13,6 +15,9 @@ public class BotCommandManager(IEnumerable<IBotCommand> commands)
             if (command.CanRun(message))
             {
                 await command.RunCommand(message);
+                if (!command.IsAdminCommand)
+                    metricsService.RecordRequest(message.Chat.Id, 
+                        command.Name.Replace("/", ""), command.Name);
                 return true;
             }
         }
