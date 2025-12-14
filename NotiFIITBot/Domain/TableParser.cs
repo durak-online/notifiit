@@ -14,10 +14,29 @@ internal class ParsedLessonInfo
     public string? TeacherName { get; set; }
     public string? ClassRoom { get; set; }
     public TimeOnly? Begin { get; set; }
+    public TimeOnly? End { get; set; }
 }
 
-public class TableParser
+public partial class TableParser
 {
+    [GeneratedRegex(@"МЕН-\d+")]
+    private static partial Regex MenGroupRegex();
+
+    [GeneratedRegex(@"(\d{1,2}:\d{2})")]
+    private static partial Regex TimeFromCellRegex();
+
+    [GeneratedRegex(@"\s*(?:\d{1,2}:\d{2}-\d{1,2}:\d{2}\s+)?с\s+\d{1,2}\s+\w+.*$")]
+    private static partial Regex StartDateTextRegex();
+    
+    [GeneratedRegex(@"углублённая группа", RegexOptions.IgnoreCase)]
+    private static partial Regex AdvancedGroupRegex();
+
+    [GeneratedRegex(@"^(\d{3}[а-я]?|онлайн)$", RegexOptions.IgnoreCase)]
+    private static partial Regex ClassroomRegex();
+    
+    [GeneratedRegex(@"^.+(\d{3}[а-я]?|онлайн)$", RegexOptions.IgnoreCase)]
+    private static partial Regex TeacherAndClassroomRegex();
+    
     public static void ShowTables()
     {
         try
@@ -34,6 +53,7 @@ public class TableParser
                                   $"Аудитория: {lesson.ClassRoom}, " +
                                   $"Пара №: {lesson.PairNumber}, " +
                                   $"Начало: {lesson.Begin} " +
+                                  $"Конец: {lesson.End} " +
                                   $"Четность: {lesson.EvennessOfWeek}");
                 Console.WriteLine("\n");
             }
@@ -137,7 +157,7 @@ public class TableParser
                     lessonInfo.TeacherName,
                     lessonInfo.ClassRoom,
                     lessonInfo.Begin ?? currentTime,
-                    null,
+                    lessonInfo.End ?? null,
                     location,
                     columnSubgroupMap[j],
                     menGroup,
@@ -218,8 +238,8 @@ public class TableParser
             var groupCell = groupsRow[j]?.ToString();
             if (!string.IsNullOrWhiteSpace(groupCell) && groupCell.Contains("МЕН"))
             {
-                columnGroupMap[j] = Regex.Match(groupCell, @"МЕН-\d+").Value;
-                columnGroupMap[j + 1] = Regex.Match(groupCell, @"МЕН-\d+").Value;
+                columnGroupMap[j] = MenGroupRegex().Match(groupCell).Value;
+                columnGroupMap[j + 1] = MenGroupRegex().Match(groupCell).Value;
             }
         }
 
@@ -246,7 +266,7 @@ public class TableParser
         if (parts.Length > 0) currentPairNumber = ParseRomanNumeral(parts[0]);
 
         // регулярка, чтобы не ломалось для необычных
-        var timeMatch = Regex.Match(timeCell, @"(\d{1,2}:\d{2})");
+        var timeMatch = TimeFromCellRegex().Match(timeCell);
         if (timeMatch.Success && TimeOnly.TryParse(timeMatch.Value, out var time)) currentTime = time;
 
         return (currentTime, currentPairNumber);
@@ -297,10 +317,13 @@ public class TableParser
         var info = new ParsedLessonInfo();
 
         //Уточнённое в ячейке время
-        var startTimeMatch = Regex.Match(cell, @"(\d{1,2}:\d{2})");
-        if (startTimeMatch.Success)
-            if (TimeOnly.TryParse(startTimeMatch.Groups[1].Value, out var begin))
+        var startTimeMatch = TimeFromCellRegex().Matches(cell);
+        if (startTimeMatch.Any())
+            if (TimeOnly.TryParse(startTimeMatch[0].Groups[1].Value, out var begin))
                 info.Begin = begin;
+        if (startTimeMatch.Count > 1)
+            if (TimeOnly.TryParse(startTimeMatch[1].Groups[1].Value, out var end))
+                info.End = end;
 
         if (cell.Contains("Физкультура") || cell.Contains("Фузкультура"))
         {
@@ -309,10 +332,10 @@ public class TableParser
         }
 
         //Убираем пометки "такое-то время с такой-то даты"
-        var cleanCell = Regex.Replace(cell, @"\s*(?:\d{1,2}:\d{2}-\d{1,2}:\d{2}\s+)?с\s+\d{1,2}\s+\w+.*$", "").Trim();
+        var cleanCell = StartDateTextRegex().Replace(cell, "").Trim();
 
         //Убираем "углублённая группа"
-        cleanCell = Regex.Replace(cleanCell, @"углублённая группа", "", RegexOptions.IgnoreCase).Trim();
+        cleanCell = AdvancedGroupRegex().Replace(cleanCell, "").Trim();
 
         var parts = cleanCell.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .ToList();
@@ -323,20 +346,18 @@ public class TableParser
             p.Contains("по расписанию"));
 
         if (parts.Count == 0) return null;
-        var classroomPattern = @"^(\d{3}[а-я]?|онлайн)$";
-        var foundClassrooms = parts.FindAll(p => Regex.IsMatch(p, classroomPattern, RegexOptions.IgnoreCase));
+        var foundClassrooms = parts.FindAll(p => ClassroomRegex().IsMatch(p));
         if (foundClassrooms.Any())
         {
             info.ClassRoom = string.Join(", ", foundClassrooms);
-            parts.RemoveAll(p => Regex.IsMatch(p, classroomPattern, RegexOptions.IgnoreCase));
+            parts.RemoveAll(p => ClassroomRegex().IsMatch(p));
         }
 
         info.SubjectName = parts.First();
         parts.RemoveAt(0);
         while (parts.Count > 0)
         {
-            if (Regex.IsMatch(parts.Last(), @"^.+(\d{3}[а-я]?|онлайн)$",
-                    RegexOptions.IgnoreCase)) //хардкод дермового случая 1 курса (ПЭК четверг)
+            if (TeacherAndClassroomRegex().IsMatch(parts.Last())) //хардкод дермового случая 1 курса (ПЭК четверг)
             {
                 info.ClassRoom = parts.Last().Split(' ')[1];
                 info.TeacherName = parts.Last().Split(' ')[0];

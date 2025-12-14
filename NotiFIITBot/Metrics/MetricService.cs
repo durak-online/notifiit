@@ -8,7 +8,6 @@ public class MetricsService : IDisposable
 {
     private readonly string metricsDirectory;
     private readonly ReaderWriterLockSlim _lock = new();
-    private readonly Dictionary<long, UserActivity> activeUsers = new();
     private readonly Dictionary<string, int> weeklyRequests = new();
     private DateTime currentWeekStart;
     private readonly char separator = ';';
@@ -25,7 +24,7 @@ public class MetricsService : IDisposable
         currentWeekStart = GetWeekStart(DateTime.UtcNow);
         LoadExistingData();
         
-        //периодическое сохранение?
+        //периодическое сохранение на всякий случай?
         _ = Task.Run(PeriodicSave);
     }
     
@@ -124,22 +123,6 @@ public class MetricsService : IDisposable
             var requestKey = $"{now:yyyy-MM-dd}{separator}{requestType}";
             weeklyRequests[requestKey] = weeklyRequests.GetValueOrDefault(requestKey) + 1;
             
-            if (!activeUsers.TryGetValue(userId, out var activity))
-            {
-                activity = new UserActivity
-                {
-                    UserId = userId,
-                    FirstSeen = now,
-                    LastSeen = now,
-                    RequestCount = 0
-                };
-                activeUsers[userId] = activity;
-            }
-            
-            activity.LastSeen = now;
-            activity.RequestCount++;
-            activity.RequestTypes.Add(requestType);
-            
             var request = new UserRequestMetric
             {
                 Timestamp = now,
@@ -176,7 +159,6 @@ public class MetricsService : IDisposable
         }
         catch (Exception ex)
         {
-            Console.WriteLine("Failed to write detailed metrics request");
             logger.Error(ex, "Failed to write detailed metrics request");
         }
     }
@@ -216,17 +198,6 @@ public class MetricsService : IDisposable
             try
             {
                 SaveWeeklyMetrics();
-                
-                var activityFile = Path.Combine(metricsDirectory, $"user_activity_{DateTime.UtcNow:yyyy-MM-dd}.csv");
-                var lines = new List<string> { $"UserId{separator}FirstSeen{separator}LastSeen{separator}RequestCount{separator}RequestTypes" };
-                
-                foreach (var kvp in activeUsers)
-                {
-                    var types = string.Join(";", kvp.Value.RequestTypes);
-                    lines.Add($"{kvp.Key}{separator}{kvp.Value.FirstSeen:O}{separator}{kvp.Value.LastSeen:O}{separator}{kvp.Value.RequestCount}{separator}{ToCsv(types)}");
-                }
-                
-                File.WriteAllLines(activityFile, lines);
             }
             finally
             {
