@@ -1,65 +1,52 @@
-﻿using System.Net;
-using Serilog;
+﻿using Serilog;
 using Telegram.Bot;
 using Telegram.Bot.Exceptions;
 using Telegram.Bot.Polling;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
-using Telegram.Bot.Types.ReplyMarkups;
 using NotiFIITBot.Consts;
 using NotiFIITBot.Domain;
 using NotiFIITBot.Repo;
 using System.Text.RegularExpressions;
 using NotiFIITBot.Logging;
 using NotiFIITBot.Metrics;
+using NotiFIITBot.Domain.BotCommands;
 
 namespace NotiFIITBot.App;
 
-public partial class Bot : IDisposable
+public partial class Bot(
+    IUserRepository userRepository,
+    ScheduleService scheduleService,
+    BotMessageService botService,
+    RegistrationService registrationService,
+    BotCommandManager botCommandManager,
+    MetricsService metricsService,
+    CancellationTokenSource cts,
+    ILoggerFactory loggerFactory
+        )
 {
-    private readonly MetricsService metricsService; 
-    private readonly TelegramBotClient bot;
-    private readonly CancellationTokenSource cts;
-    private readonly HttpClient httpClient;
-    private readonly ILogger logger;
+    private readonly IUserRepository userRepository = userRepository;
+    private readonly ScheduleService scheduleService = scheduleService;
+    private readonly BotMessageService botService = botService;
+    private readonly RegistrationService registrationService = registrationService;
+    private readonly BotCommandManager botCommandManager = botCommandManager;
+    private readonly MetricsService metricsService = metricsService; 
 
-    private readonly HashSet<long> registeringUserIds = new();
+    private readonly CancellationTokenSource cts = cts;
+    private readonly ILogger logger = loggerFactory.CreateLogger("BOT");
 
     // если навестись, то даже описание есть чего оно ищет
     [GeneratedRegex(@"^(?:МЕН-)?(?<group>\d{6})-(?<subgroup>\d)$", RegexOptions.IgnoreCase)]
     private static partial Regex MENGroupRegex();
 
-    private readonly IUserRepository userRepository;
-    private readonly IScheduleRepository scheduleRepository;
-    private readonly ScheduleService scheduleService;
-
-    public Bot(IUserRepository userRepository, IScheduleRepository scheduleRepository,
-        ScheduleService scheduleService, CancellationTokenSource cts, ILoggerFactory loggerFactory,  MetricsService metricsService)
-    {
-        this.userRepository = userRepository;
-        this.scheduleRepository = scheduleRepository;
-        this.scheduleService = scheduleService;
-        this.cts = cts;
-        logger = loggerFactory.CreateLogger("BOT");
-        this.metricsService = metricsService; 
-        var proxy = new WebProxy("http://75.56.141.249:8000");
-
-        var httpClient = new HttpClient(new HttpClientHandler()
-        {
-            Proxy = proxy,
-            UseProxy = false
-        });
-        this.httpClient = httpClient;
-
-        bot = new TelegramBotClient(token: EnvReader.BotToken, httpClient: httpClient);
-    }
-
     public async Task StartPolling()
     {
+        var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+        var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(timeoutCts.Token, cts.Token);
+
         try
         {
-            using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
-            var info = bot.GetMe(timeoutCts.Token).GetAwaiter().GetResult();
+            var info = await botService.GetBotInfo(linkedCts.Token);
             logger.Information($"Bot {info} started to work");
 
             var receiverOptions = new ReceiverOptions
@@ -68,19 +55,30 @@ public partial class Bot : IDisposable
                 DropPendingUpdates = true
             };
 
-            bot.StartReceiving(
+            botService.GetTelegramBot()
+                .StartReceiving(
                 HandleUpdate,
                 HandlePollingError,
                 receiverOptions,
-                cts.Token
+                linkedCts.Token
             );
-            
+
             logger.Information("Bot is now receiving updates...");
+        }
+        catch (OperationCanceledException)
+        {
+            logger.Error("Bot startup timed out after 30 seconds");
+            throw;
         }
         catch (Exception ex)
         {
             logger.Fatal($"Can't initialize bot: {ex}");
             throw;
+        }
+        finally
+        {
+            timeoutCts.Dispose();
+            linkedCts.Dispose();
         }
     }
 
@@ -91,7 +89,7 @@ public partial class Bot : IDisposable
         {
             try
             {
-                await bot.SendMessage(id, message, ParseMode.Html);
+                await botService.SendMessage(id, message);
                 successful++;
             }
             catch (Exception ex)
@@ -133,38 +131,29 @@ public partial class Bot : IDisposable
 
     private async Task HandleCallbackQuery(CallbackQuery cbQuery)
     {
-        string? sched = null;
-        
+        var sched = "Произошла ошибка при получении расписания";
         metricsService.RecordRequest(cbQuery.From.Id, "Inline", null);
-        switch (cbQuery.Data)
-        {
-            case nameof(SchedulePeriod.Today):
-                sched = await GetSchedForPeriodAsync(cbQuery.From.Id, SchedulePeriod.Today);
-                break;
-            case nameof(SchedulePeriod.Tomorrow):
-                sched = await GetSchedForPeriodAsync(cbQuery.From.Id, SchedulePeriod.Tomorrow);
-                break;
-            case nameof(SchedulePeriod.Week):
-                sched = await GetSchedForPeriodAsync(cbQuery.From.Id, SchedulePeriod.Week);
-                break;
-            case nameof(SchedulePeriod.TwoWeeks):
-                sched = await GetSchedForPeriodAsync(cbQuery.From.Id, SchedulePeriod.TwoWeeks);
-                break;
-        }
 
-        if (sched == null)
+        try
         {
-            logger.Error($"Can't handle CallbackQuery with data: {cbQuery.Data}, text: {cbQuery.Message?.Text}");
-            sched = "Произошла ошибка при получении расписания";
+            sched = await scheduleService.GetSchedForPeriodAsync(
+                cbQuery.From.Id, 
+                (SchedulePeriod)Enum.Parse(typeof(SchedulePeriod), cbQuery.Data)
+            );
         }
-
-        await bot.EditMessageText(
+        catch (Exception ex)
+        {
+            logger.Error(ex, $"Can't handle CallbackQuery with data: {cbQuery.Data}, text: {cbQuery.Message?.Text}");
+        }
+        
+        await botService.EditMessage(
             cbQuery.Message!.Chat,
             cbQuery.Message.Id,
-            sched,
-            ParseMode.Html
+            sched
         );
-        await bot.AnswerCallbackQuery(cbQuery.Id);
+
+        // это надо, чтобы вверху в боте не было плашки "Загрузка"
+        await botService.AnswerCallbackQuery(cbQuery);
     }
 
     private async Task HandlePollingError(ITelegramBotClient botClient, Exception exception,
@@ -186,9 +175,10 @@ public partial class Bot : IDisposable
         if (message.Text != null)
             await AnswerOnMessage(message);
         else
-            await bot.SendMessage(
+            await botService.SendMessage(
                 message.Chat.Id,
-                "Я не понял о чем ты...\nНапиши /help, если не знаешь с чего начать!");
+                "Я не понял о чем ты...\nНапиши /help, если не знаешь с чего начать!"
+            );
     }
 
     private async Task AnswerOnMessage(Message message)
@@ -197,141 +187,26 @@ public partial class Bot : IDisposable
         if (isRegistering)
             return;
 
-        switch (message.Text!.Split()[0])
-        {
-            #region base commands
-            case "/start":
-                await bot.SendMessage(
-                    message.Chat.Id,
-                    "Добро пожаловать! Напиши свою группу в формате МЕН-группа-подгруппа для регистрации. " +
-                    "Например <b>МЕН-240801-1</b>",
-                    ParseMode.Html);
-
-                registeringUserIds.Add(message.Chat.Id);
-                break;
-
-            case "/rereg":
-                await bot.SendMessage(
-                    message.Chat.Id,
-                    "Меняем твою группу! Напиши свою группу в формате МЕН-группа-подгруппа для регистрации. " +
-                    "Например <b>МЕН-240801-1</b>",
-                    ParseMode.Html);
-
-                registeringUserIds.Add(message.Chat.Id);
-                break;
-
-            case "/sched":
-                await AskSchedule(message);
-                break;
-
-            case "/today":
-                metricsService.RecordRequest(message.From!.Id, "Today", "/today");
-                var todaySched = await GetSchedForPeriodAsync(message.Chat.Id, SchedulePeriod.Today);
-                await bot.SendMessage(
-                    message.Chat.Id,
-                    todaySched,
-                    ParseMode.Html
-                );
-                break;
-
-            case "/tmrw":
-                metricsService.RecordRequest(message.From!.Id, "Tomorrow", "/tmrw");
-                var tomorrowSched = await GetSchedForPeriodAsync(message.Chat.Id, SchedulePeriod.Tomorrow);
-                await bot.SendMessage(
-                    message.Chat.Id,
-                    tomorrowSched,
-                    ParseMode.Html
-                );
-                break;
-
-            case "/week":
-                metricsService.RecordRequest(message.From!.Id, "Week", "/week");
-                var weekSched = await GetSchedForPeriodAsync(message.Chat.Id, SchedulePeriod.Week);
-                await bot.SendMessage(
-                    message.Chat.Id,
-                    weekSched,
-                    ParseMode.Html
-                );
-                break;
-
-            case "/2week":
-                metricsService.RecordRequest(message.From!.Id, "2week", "/2week");
-                var twoWeeksSched = await GetSchedForPeriodAsync(message.Chat.Id, SchedulePeriod.TwoWeeks);
-                await bot.SendMessage(
-                    message.Chat.Id,
-                    twoWeeksSched,
-                    ParseMode.Html
-                );
-                break;
-            #endregion
-
-            #region side commands
-            case "/slots":
-                await bot.SendMessage(message.Chat.Id, "Додепчик пошел");
-                await bot.SendDice(
-                    message.Chat.Id,
-                    DiceEmoji.Dice
-                );
-                break;
-
-            case "/help":
-                await SendHelpMessage(message);
-                break;
-            #endregion
-
-            #region admin commands
-            case "/stop" when IsAdmin(message.From!):
-                await bot.SendMessage(message.Chat.Id, "Останавливаю бота...");
-                logger.Information($"Stopped by {message.From!}");
-                cts.Cancel();
-                break;
-
-            case "/delete" when IsAdmin(message.From!):
-                await DeleteUser(message);
-                break;
-
-            #endregion
-
-            default:
-                await bot.SendMessage(
-                    message.Chat.Id,
-                    "Я не понял о чем ты...\nНапиши /help, если не знаешь с чего начать!");
-                break;
-        }
-    }
-
-    private async Task DeleteUser(Message message)
-    {
-        if (long.TryParse(message.Text!.Split()[1], out var userToDeleteId))
-        {
-            await userRepository.DeleteUserAsync(userToDeleteId);
-            await bot.SendMessage(
-                    message.Chat.Id,
-                    "Юзер был успешно удален из базы данных",
-                    ParseMode.Html);
-        }
-        else
-        {
-            await bot.SendMessage(
-                    message.Chat.Id,
-                    "Юзер не был удален из базы данных, неверно введен ID.\n" +
-                    "Допускаются только цифры, нужен tg ID юзера",
-                    ParseMode.Html);
-        }
+        var isExecuted = await botCommandManager.TryExecuteCommand(message);
+        if (!isExecuted)
+            await botService.SendMessage(
+                message.Chat.Id,
+                "Неизвестная команда. Напиши /help или посмотри список в <b>Меню</b>"
+            );
     }
 
     private async Task<bool> IsRegistering(Message message)
     {
-        if (registeringUserIds.Contains(message.Chat.Id))
+        if (registrationService.ContainsUser(message.Chat.Id))
         {
             var match = MENGroupRegex().Match(message.Text!);
 
             if (!match.Success)
             {
-                await bot.SendMessage(
+                await botService.SendMessage(
                     message.Chat.Id,
-                    "Неверный формат группы. Убедись, что прислал что-то похожее на <b>МЕН-240801-1</b> и попробуй еще раз",
-                    ParseMode.Html);
+                    "Неверный формат группы. Убедись, что прислал что-то похожее на <b>МЕН-240801-1</b> и попробуй еще раз"
+                );
                 return true;
             }
 
@@ -348,85 +223,16 @@ public partial class Bot : IDisposable
                 else
                     await userRepository.AddUserAsync(message.Chat.Id, groupNum, subGroupNum);
 
-                registeringUserIds.Remove(message.Chat.Id);
-                await bot.SendMessage(
+                registrationService.RemoveUser(message.Chat.Id);
+                await botService.SendMessage(
                     message.Chat.Id,
-                    "Ты был успешно зарегистрирован! Посмотри список доступных команд в <b>Меню</b>",
-                    ParseMode.Html);
+                    "Ты был успешно зарегистрирован! Посмотри список доступных команд в <b>Меню</b>"
+                );
             }
 
             return true;
         }
 
         return false;
-    }
-
-    private async Task AskSchedule(Message message)
-    {
-        var schedInlineMarkup = new InlineKeyboardMarkup()
-            .AddButton("Сегодня", nameof(SchedulePeriod.Today))
-            .AddButton("Завтра", nameof(SchedulePeriod.Tomorrow))
-            .AddNewRow()
-            .AddButton("Неделя", nameof(SchedulePeriod.Week))
-            .AddButton("2 недели", nameof(SchedulePeriod.TwoWeeks));
-        await bot.SendMessage(message.Chat, "Выбери какое расписание тебе нужно:", replyMarkup: schedInlineMarkup);
-    }
-
-    private async Task<string> GetSchedForPeriodAsync(long userId, SchedulePeriod period)
-    {
-        try
-        {
-            var user = await userRepository.FindUserAsync(userId);
-            if (user == null)
-                return "Ты еще не зарегестрирован в базе данных";
-
-            var scheduleDays = await scheduleService.GetFormattedScheduleAsync(user.MenGroup, user.SubGroup, period);
-            if (scheduleDays == null || scheduleDays.Count == 0)
-            {
-                return $"Пар для группы МЕН-{user.MenGroup}-{user.SubGroup} нет 🎉";
-            }
-
-            var result = new System.Text.StringBuilder();
-
-            foreach (var (date, lessons) in scheduleDays)
-            {
-                result.Append(Formatter.FormatLessons(date, lessons));
-            }
-
-            return result.ToString();
-        }
-        catch (Exception ex)
-        {
-            logger.Error(ex, "Error while getting schedule from DB");
-            return "Произошла ошибка при получении данных из базы";
-        }
-    }
-
-    private static bool IsAdmin(User user)
-    {
-        return user.Id == EnvReader.CreatorId;
-    }
-
-    private async Task SendHelpMessage(Message message)
-    {
-        var answer = "Это бот для отправки расписания. Все возможные команды есть в <b>Меню</b>\n\n" +
-            "/sched - Отправляет сообщение с выбором периода расписания\n" +
-            "/today - Отправляет расписание на сегодня\n" +
-            "/tmrw - Отправляет расписание на завтра\n" +
-            "/week - Отправляет расписание на текущую неделю\n" +
-            "/2week - Отправляет расписание на текущую и следующую неделю\n" +
-            "/rereg - Изменяет твою МЕН группу и подгруппу";
-
-        if (IsAdmin(message.From!))
-            answer += "\n\n<b>ДЛЯ АДМИНОВ</b>\n\n" +
-                "/stop - Остановить бота, то есть <b>остановить программу на сервере</b>\n" +
-                "/delete *tg_id* - Удалить юзера с данным tg_id из базы данных\n";
-
-        await bot.SendMessage(message.Chat.Id, answer, ParseMode.Html);
-    }
-
-    public void Dispose()
-    {
-        httpClient.Dispose();
     }
 }

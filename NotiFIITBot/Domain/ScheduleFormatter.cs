@@ -1,32 +1,28 @@
-﻿using System.Globalization;
-using System.Text;
-using NotiFIITBot.Database.Models;
-using NotiFIITBot.Domain;
+﻿using System.Text;
 
-namespace NotiFIITBot.App;
+namespace NotiFIITBot.Domain;
 
-public class ScheduleFormatter
+public static class ScheduleFormatter
 {
-    public static class Emoji
+    private static class Emoji
     {
         public static string Clock = "🕒";
         public static string Subject = "🎓";
         public static string Teacher = "👤";
         public static string Calendar = "📅";
-        public static string Location = "📍";
+        public static string Location = "🏛";
         public static string Monkey = "🙊";
     }
-    
-    public static string BuildDailySchedule(List<Lesson> lessons)
+
+    public static string BuildDailySchedule(DateOnly date, List<Lesson> lessons)
     {
         var strBuilder = new StringBuilder();
-        
-        var day = lessons[0].DayOfWeek;
-        strBuilder.Append($" {Emoji.Calendar} {DayOfWeekInRus(day)}:\n\n");
-        
-        if (!lessons.Any())
+
+        strBuilder.Append($"{Emoji.Calendar} {DayOfWeekInRus(lessons[0].DayOfWeek)} ({date}):\n\n");
+
+        if (lessons.Count == 0)
         {
-            strBuilder.AppendLine("Занятий нет {Emoji.Monkey}");
+            strBuilder.AppendLine($"Занятий нет {Emoji.Monkey}");
             return strBuilder.ToString();
         }
         foreach (var lesson in lessons)
@@ -34,28 +30,32 @@ public class ScheduleFormatter
             strBuilder.Append(FormatLesson(lesson));
             strBuilder.AppendLine();
         }
-        
+
         return strBuilder.ToString();
     }
-    
+
     public static string FormatLesson(Lesson lesson)
     {
         var lessonEnd = lesson.End == null
             ? lesson.Begin!.Value.AddHours(1).AddMinutes(30)
             : lesson.End;
 
-        var time = $"{Emoji.Clock} {lesson.Begin:HH:mm}-{lessonEnd:HH:mm}";
+        var time = $"{Emoji.Clock} №{lesson.PairNumber} {lesson.Begin:HH:mm}-{lessonEnd:HH:mm}";
         var subject = $"{Emoji.Subject} {lesson.SubjectName}";
-        var teacher = string.IsNullOrWhiteSpace(lesson.TeacherName)
-            ? "{Emoji.Teacher} Преподаватель: —"
-            : $"{Emoji.Teacher} Преподаватель: {lesson.TeacherName}";
-        var room = string.IsNullOrWhiteSpace(lesson.ClassRoom)
-            ? "{Emoji.Location} Аудитория: —"
-            : $"{Emoji.Location} Аудитория: {lesson.ClassRoom}";
+        var teacher = $"{Emoji.Teacher} Преподаватель: " +
+            $"{(string.IsNullOrEmpty(lesson.TeacherName) ? "-" : lesson.TeacherName)}";
 
-        return $"{time}\n{subject}\n{teacher}\n{room}\n";
+        // some shit
+        var room = $"{Emoji.Location} " +
+            $"{(string.IsNullOrEmpty(lesson.ClassRoom) 
+            ? "Ауд. -" 
+            : lesson.ClassRoom.ToLower() == "онлайн" ? lesson.ClassRoom : $"Ауд. {lesson.ClassRoom}")}";
+        var location = $"{(string.IsNullOrEmpty(lesson.AuditoryLocation) 
+            || lesson.AuditoryLocation.ToLower() == "онлайн" ? "" : $"; {lesson.AuditoryLocation}")}";
+
+        return $"{time}\n{subject}\n{teacher}\n{room}{location}\n";
     }
-    
+
     private static string DayOfWeekInRus(DayOfWeek? dayOfWeek)
     {
         return dayOfWeek switch
