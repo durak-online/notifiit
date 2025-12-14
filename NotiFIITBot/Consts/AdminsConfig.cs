@@ -1,5 +1,3 @@
-using System.Collections.Generic;
-using System.IO;
 using System.Text.Json;
 
 namespace NotiFIITBot.Consts;
@@ -16,7 +14,7 @@ public static class AdminsConfig
     }
 }
 
-internal class AdminData
+public class AdminData
 {
     public List<long> AdminIds { get; set; }
 }

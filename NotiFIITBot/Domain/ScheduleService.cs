@@ -70,10 +70,12 @@ public class ScheduleService(IScheduleRepository scheduleRepository, IUserReposi
                 break;
             default:
             {
-                var daysFromMonday = ((int)today.DayOfWeek + 6) % 7;
-                startDay = today.AddDays(-daysFromMonday);
-            
-                daysCount = period == SchedulePeriod.TwoWeeks ? 14 : 7;
+                    var daysFromMonday = today.DayOfWeek == DayOfWeek.Sunday
+                        ? -1  // +1 день от воскресенья чтобы получать на след. неделю уже
+                        : ((int)today.DayOfWeek + 6) % 7;
+                    startDay = today.AddDays(-daysFromMonday);
+
+                    daysCount = period == SchedulePeriod.TwoWeeks ? 14 : 7;
                 break;
             }
         }
@@ -91,7 +93,9 @@ public class ScheduleService(IScheduleRepository scheduleRepository, IUserReposi
                 .Select(m =>
                 {
                     var start = m.StartTime;
-                    var end = start.AddMinutes(90);
+                    var end = m.EndTime != TimeOnly.MaxValue 
+                    ? m.EndTime
+                    : start.AddMinutes(90);
 
                     return new Lesson(
                         pairNumber: m.PairNumber,

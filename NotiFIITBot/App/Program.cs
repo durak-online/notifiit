@@ -12,7 +12,6 @@ namespace NotiFIITBot.App;
 public class Program
 {
     private static ILogger logger;
-    private static MetricsReporter? metricsReporter;
 
     public static async Task Main()
     {

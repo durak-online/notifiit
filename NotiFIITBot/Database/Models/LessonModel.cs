@@ -30,6 +30,9 @@ public class LessonModel
     [Column("start_time")]
     public TimeOnly StartTime { get; set; }
 
+    [Column("end_time")]
+    public TimeOnly EndTime { get; set; }
+
 
     [Column("subject_name")]
     [StringLength(255)]

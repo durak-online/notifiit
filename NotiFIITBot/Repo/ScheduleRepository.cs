@@ -52,6 +52,7 @@ public class ScheduleRepository(
                     existing.AuditoryLocation = model.AuditoryLocation;
                     existing.PairNumber = model.PairNumber;
                     existing.StartTime = model.StartTime;
+                    existing.EndTime = model.EndTime;
                     existing.DayOfWeek = model.DayOfWeek;
                     existing.Evenness = model.Evenness;
 

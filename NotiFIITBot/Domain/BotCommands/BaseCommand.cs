@@ -16,7 +16,7 @@ public abstract class BaseCommand(BotMessageService botService) : IBotCommand
 
     public virtual bool CanRun(Message message)
     {
-        return message.Text != null && message.Text.Contains(Name);
+        return message.Text != null && message.Text.Trim() == Name;
     }
 
     protected static bool IsAdmin(User user)

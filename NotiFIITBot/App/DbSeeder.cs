@@ -161,6 +161,7 @@ public class DbSeeder
                     AuditoryLocation = l.AuditoryLocation,
                     PairNumber = l.PairNumber ?? 0,
                     StartTime = l.Begin ?? TimeOnly.MinValue,
+                    EndTime = l.End ?? (l.Begin.HasValue ? l.Begin.Value.AddMinutes(90) : TimeOnly.MaxValue),
                     DayOfWeek = l.DayOfWeek ?? DayOfWeek.Monday,
                     Evenness = l.EvennessOfWeek
                 }).ToList();
