@@ -48,7 +48,7 @@ public static class DiContainer
         services.AddTransient<DbSeeder>();
 
         services.AddScoped<Bot>();
-        services.AddScoped<Notifier>();
+        // services.AddScoped<Notifier>();
         
         services.AddSingleton<MetricsService>();
         services.AddTransient<MetricsReporter>();

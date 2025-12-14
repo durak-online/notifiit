@@ -32,7 +32,7 @@ public class Program
 
             using var botScope = serviceProvider.CreateScope();
             var bot = botScope.ServiceProvider.GetRequiredService<Bot>();
-            var notifier = botScope.ServiceProvider.GetRequiredService<Notifier>();
+            // var notifier = botScope.ServiceProvider.GetRequiredService<Notifier>();
             
             var schedulerFactory = serviceProvider.GetRequiredService<ISchedulerFactory>();
             var scheduler = await schedulerFactory.GetScheduler();
@@ -40,7 +40,7 @@ public class Program
 
             logger.Information("Quartz Scheduler started");
             await bot.StartPolling();
-            await notifier.Start();
+            // await notifier.Start();
             await Task.Delay(Timeout.Infinite, cts.Token);
         }
         catch (TaskCanceledException)
