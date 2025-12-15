@@ -27,16 +27,16 @@ public partial class TableParser
 
     [GeneratedRegex(@"\s*(?:\d{1,2}:\d{2}-\d{1,2}:\d{2}\s+)?с\s+\d{1,2}\s+\w+.*$")]
     private static partial Regex StartDateTextRegex();
-    
+
     [GeneratedRegex(@"углублённая группа", RegexOptions.IgnoreCase)]
     private static partial Regex AdvancedGroupRegex();
 
     [GeneratedRegex(@"^(\d{3}[а-я]?|онлайн)$", RegexOptions.IgnoreCase)]
     private static partial Regex ClassroomRegex();
-    
+
     [GeneratedRegex(@"^.+(\d{3}[а-я]?|онлайн)$", RegexOptions.IgnoreCase)]
     private static partial Regex TeacherAndClassroomRegex();
-    
+
     public static void ShowTables()
     {
         try
@@ -142,6 +142,8 @@ public partial class TableParser
             if (lessonInfo == null) continue;
 
             var location = GetLocationByColor(gridData.RowData[i].Values[j]);
+            if (lessonCell.Contains("Физкультура") || lessonCell.Contains("Фузкультура")) //хардкод, чтобы не было аудитории у физ-ры
+                location = null;
             if (location == "Онлайн") lessonInfo.ClassRoom = "Онлайн"; //вроде надо было
             var menGroup = int.Parse(columnGroupMap[j].Split("-")[1]);
 
@@ -168,23 +170,6 @@ public partial class TableParser
             }
         }
     }
-
-    //старый, пусть пока будет
-    // private static Evenness GetEvenness2(IList<IList<object>> values, int i, [DisallowNull] TimeOnly? currentTime, int j) 
-    // {
-    //     var eveness = Evenness.Always;
-    //     var nextRow = values[i + 1];
-    //     if (j < nextRow.Count && nextRow[j] == null && values[i][j] != null) // дерьмо, переделать бы
-    //     {
-    //         eveness = OddOrEven(currentTime, nextRow);
-    //         return eveness;
-    //     }
-    //     if (nextRow.Count != 0 && j < nextRow.Count && nextRow[j].ToString() != values[i][j].ToString())
-    //     {
-    //         eveness = OddOrEven(currentTime, nextRow);
-    //     }
-    //     return eveness;
-    // }
 
     private static Evenness GetEvenness(IList<IList<object>> values, int i, [DisallowNull] TimeOnly? currentTime, int j)
     {
@@ -330,6 +315,7 @@ public partial class TableParser
             info.SubjectName = "Физкультура";
             return info;
         }
+
 
         //Убираем пометки "такое-то время с такой-то даты"
         var cleanCell = StartDateTextRegex().Replace(cell, "").Trim();
