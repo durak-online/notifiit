@@ -7,7 +7,7 @@ public class SlotsCommand(BotMessageService botService) : BaseCommand(botService
 {
     // делаем так, чтобы команда была скрытой и
     // не высвечивалась в help
-    public override string Name => "";
+    public override string CommandName => "";
 
     public override string Description => "";
 

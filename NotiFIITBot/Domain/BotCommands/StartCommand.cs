@@ -6,7 +6,7 @@ public class StartCommand(BotMessageService botService, RegistrationService regi
 {
     private readonly RegistrationService registrationService = registrationService;
 
-    public override string Name => "/start";
+    public override string CommandName => "/start";
 
     public override string Description => "Стартовая команда, отправляет сообщение о регистрации";
 

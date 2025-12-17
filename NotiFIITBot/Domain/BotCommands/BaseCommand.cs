@@ -7,7 +7,8 @@ public abstract class BaseCommand(BotMessageService botService) : IBotCommand
 {
     protected readonly BotMessageService botService = botService;
 
-    public abstract string Name { get; }
+    public abstract string CommandName { get; }
+    public virtual string? ButtonName => null;
 
     public abstract string Description { get; }
     public abstract bool IsAdminCommand { get; }
@@ -16,7 +17,7 @@ public abstract class BaseCommand(BotMessageService botService) : IBotCommand
 
     public virtual bool CanRun(Message message)
     {
-        return message.Text != null && message.Text.Trim() == Name;
+        return message.Text != null && (message.Text.Trim() == CommandName || message.Text.Trim() == ButtonName);
     }
 
     protected static bool IsAdmin(User user)

@@ -236,12 +236,12 @@ public partial class Bot(
                 else
                     await userRepository.AddUserAsync(message.Chat.Id, groupNum, subGroupNum);
                 
-                
-
                 registrationService.RemoveUser(message.Chat.Id);
+                var mainKeyboard = botCommandManager.GetMainKeyboard();
                 await botService.SendMessage(
                     message.Chat.Id,
-                    "Ты был(а) успешно зарегистрирован! Посмотри список доступных команд в <b>Меню</b>"
+                    "Ты был(а) успешно зарегистрирован! Посмотри список доступных команд в <b>Меню</b>",
+                    replyMarkup: mainKeyboard
                 );
             }
 

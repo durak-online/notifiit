@@ -7,7 +7,9 @@ public class TodayCommand(BotMessageService botService, ScheduleService schedule
 {
     private readonly ScheduleService scheduleService = scheduleService;
 
-    public override string Name => "/today";
+    public override string CommandName => "/today";
+    
+    public override string ButtonName => "📅 Сегодня";
 
     public override string Description => "Отправляет расписание на сегодня";
 

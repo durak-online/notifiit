@@ -7,7 +7,9 @@ public class TomorrowCommand(BotMessageService botService, ScheduleService sched
 {
     private readonly ScheduleService scheduleService = scheduleService;
 
-    public override string Name => "/tmrw";
+    public override string CommandName => "/tmrw";
+    
+    public override string ButtonName => "🔜 Завтра";
 
     public override string Description => "Отправляет расписание на завтра";
 

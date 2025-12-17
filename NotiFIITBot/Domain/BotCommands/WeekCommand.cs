@@ -7,7 +7,9 @@ public class WeekCommand(BotMessageService botService, ScheduleService scheduleS
 {
     private readonly ScheduleService scheduleService = scheduleService;
 
-    public override string Name => "/week";
+    public override string CommandName => "/week";
+    
+    public override string ButtonName => "🗓️ Текущая неделя";
 
     public override string Description => "Отправляет расписание на текущую неделю";
 

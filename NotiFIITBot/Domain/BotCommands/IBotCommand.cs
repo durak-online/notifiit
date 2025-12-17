@@ -4,7 +4,8 @@ namespace NotiFIITBot.Domain.BotCommands;
 
 public interface IBotCommand
 {
-    string Name { get; }
+    string CommandName { get; }
+    string? ButtonName { get; }
     string Description { get; }
     bool IsAdminCommand { get; }
 

@@ -7,8 +7,8 @@ public class DeleteCommand(BotMessageService botService, IUserRepository userRep
 {
     private readonly IUserRepository userRepository = userRepository;
 
-    public override string Name => "/delete";
-
+    public override string CommandName => "/delete";
+    
     public override string Description => "Удалить юзера с данным tg_id из базы данных";
 
     public override bool IsAdminCommand => true;
@@ -35,13 +35,12 @@ public class DeleteCommand(BotMessageService botService, IUserRepository userRep
 
     public override bool CanRun(Message message)
     {
-        if (IsAdmin(message.From!) && base.CanRun(message))
+        if (IsAdmin(message.From!) && message.Text != null)
         {
-            if (message.Text!.Split().Length == 2)
+            if (message.Text!.StartsWith(CommandName) && message.Text!.Split().Length == 2)
                 return true;
-
-            // подсказка
-            Task.Run(() => botService.SendMessage(message.Chat.Id, "Команда используется как /delete *tg ID*"));
+            if (message.Text!.StartsWith(CommandName)) // подсказка
+                Task.Run(() => botService.SendMessage(message.Chat.Id, "Команда используется как /delete *tg ID*"));
         }
         return false;
     }
