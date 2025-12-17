@@ -49,7 +49,19 @@ public class ParserTests
     {
         TableParser.ShowTables();
     }
-    
+
+    [Test]
+    public void GetLessonsTable()
+    {
+        var scheduleData = TableParser.GetTableData(EnvReader.GoogleApiKey, EnvReader.TableId, EnvReader.Fiit2Range);
+        
+        Assert.That(scheduleData.Count > 0);
+        
+        scheduleData = scheduleData.Where(les => les.MenGroup == 240810).ToList();
+        
+        Assert.That(scheduleData.Where(les => les.SubjectName == "Физкультура").Count()>0);
+    }
+
     [Test]
     public void GetEvenness_Monday()
     {

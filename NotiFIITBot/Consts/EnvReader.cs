@@ -2,7 +2,7 @@
 
 namespace NotiFIITBot.Consts;
 
-internal static class EnvReader
+public static class EnvReader
 {
     static EnvReader()
     {
