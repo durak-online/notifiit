@@ -21,6 +21,7 @@ public partial class Bot(
     RegistrationService registrationService,
     BotCommandManager botCommandManager,
     MetricsService metricsService,
+    IScheduleRepository scheduleRepository,
     CancellationTokenSource cts,
     ILoggerFactory loggerFactory
         )
@@ -31,6 +32,7 @@ public partial class Bot(
     private readonly RegistrationService registrationService = registrationService;
     private readonly BotCommandManager botCommandManager = botCommandManager;
     private readonly MetricsService metricsService = metricsService; 
+    private readonly IScheduleRepository scheduleRepository = scheduleRepository;
 
     private readonly CancellationTokenSource cts = cts;
     private readonly ILogger logger = loggerFactory.CreateLogger("BOT");
@@ -177,7 +179,7 @@ public partial class Bot(
         else
             await botService.SendMessage(
                 message.Chat.Id,
-                "Я не понял о чем ты...\nНапиши /help, если не знаешь с чего начать!"
+                "Я не понял о чем ты...\nНапиши /help, если не знаешь с чего начать"
             );
     }
 
@@ -205,7 +207,7 @@ public partial class Bot(
             {
                 await botService.SendMessage(
                     message.Chat.Id,
-                    "Неверный формат группы. Убедись, что прислал что-то похожее на <b>МЕН-240801-1</b> и попробуй еще раз"
+                    "Ты ввел(а) неверный формат группы. Пришли мне МЕН-номер своей группы в формате МЕН-группа-подгруппа ещё раз"
                 );
                 return true;
             }
@@ -213,6 +215,17 @@ public partial class Bot(
             if (int.TryParse(match.Groups["group"].Value, out var groupNum) &&
                 int.TryParse(match.Groups["subgroup"].Value, out var subGroupNum))
             {
+                var isGroupValid = await scheduleRepository.GroupExistsAsync(groupNum, subGroupNum);
+                if (!isGroupValid)
+                {
+                    await botService.SendMessage(
+                        message.Chat.Id,
+                        $"Группа МЕН-{groupNum}-{subGroupNum} не найдена в базе данных.\n" +
+                        "Возможно, ты ввел(а) неверный номер группы и подгруппы или расписание для неё еще не загружено."
+                    );
+                    return true;
+                }
+
                 var user = await userRepository.FindUserAsync(message.Chat.Id);
                 if (user != null)
                 {
@@ -222,11 +235,13 @@ public partial class Bot(
                 }
                 else
                     await userRepository.AddUserAsync(message.Chat.Id, groupNum, subGroupNum);
+                
+                
 
                 registrationService.RemoveUser(message.Chat.Id);
                 await botService.SendMessage(
                     message.Chat.Id,
-                    "Ты был успешно зарегистрирован! Посмотри список доступных команд в <b>Меню</b>"
+                    "Ты был(а) успешно зарегистрирован! Посмотри список доступных команд в <b>Меню</b>"
                 );
             }
 

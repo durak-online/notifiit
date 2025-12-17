@@ -17,7 +17,7 @@ public class StartCommand(BotMessageService botService, RegistrationService regi
         await botService.SendMessage(
             message.Chat.Id,
             "Добро пожаловать! Напиши свою группу в формате МЕН-группа-подгруппа для регистрации. " +
-            "Например <b>МЕН-240801-1</b>"
+            "Например: <b>МЕН-240801-1</b>"
         );
 
         registrationService.AddUser(message.Chat.Id);

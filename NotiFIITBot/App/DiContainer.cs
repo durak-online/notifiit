@@ -37,6 +37,8 @@ public static class DiContainer
         services.AddSingleton(Log.Logger);
         services.AddLogging(loggingBuilder => loggingBuilder.AddSerilog());
         services.AddSingleton<ILoggerFactory, LoggerFactory>();
+        
+        services.AddMemoryCache();
 
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IScheduleRepository, ScheduleRepository>();

@@ -1,10 +1,17 @@
-﻿namespace NotiFIITBot.Domain;
+﻿using Microsoft.Extensions.Caching.Memory;
 
-public class RegistrationService
+namespace NotiFIITBot.Domain;
+
+public class RegistrationService(IMemoryCache memoryCache)
 {
-    private readonly HashSet<long> registeringUserIds = new();
+    private readonly IMemoryCache cache = memoryCache;
+    private readonly TimeSpan sessionLifetime = TimeSpan.FromMinutes(5);
 
-    public void AddUser(long userId) => registeringUserIds.Add(userId);
-    public void RemoveUser(long userId) => registeringUserIds.Remove(userId);
-    public bool ContainsUser(long userId) => registeringUserIds.Contains(userId);
+    public void AddUser(long userId) => cache.Set(GetKey(userId), true, sessionLifetime);
+    
+    public void RemoveUser(long userId) => cache.Remove(GetKey(userId));
+    
+    public bool ContainsUser(long userId) => cache.TryGetValue(GetKey(userId), out _);
+    
+    private static string GetKey(long userId) => $"{userId}";
 }
