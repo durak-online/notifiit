@@ -7,7 +7,7 @@ public static class ScheduleFormatter
     public static string BuildDailySchedule(DateOnly date, List<Lesson> lessons)
     {
         var sb = new StringBuilder();
-        sb.AppendLine($"📅 {DayOfWeekInRus(lessons[0].DayOfWeek)} ({date:dd.MM.yyyy})");
+        sb.AppendLine($"{EmojiProvider.Calendar} {DayOfWeekInRus(lessons[0].DayOfWeek)} ({date:dd.MM.yyyy})");
         sb.AppendLine();
 
         if (lessons.Count == 0)
@@ -41,8 +41,7 @@ public static class ScheduleFormatter
 
         foreach (var (date, lessons) in schedule.OrderBy(x => x.Key))
         {
-            // Заголовок дня: 📅 Понедельник (15.12.2025)
-            sb.AppendLine($"📅 {DayOfWeekInRus(date.DayOfWeek)} ({date:dd.MM.yyyy})");
+            sb.AppendLine($"{EmojiProvider.Calendar} {DayOfWeekInRus(date.DayOfWeek)} ({date:dd.MM.yyyy})");
             sb.AppendLine();
 
             if (lessons.Count == 0)
@@ -52,21 +51,23 @@ public static class ScheduleFormatter
                 sb.AppendLine();
                 continue;
             }
-
-            // Перебираем уроки по порядку
-            foreach (var lesson in lessons.OrderBy(l => l.Begin))
+            
+            var sortedLessons = lessons.OrderBy(l => l.Begin).ToList();
+            for (var i = 0; i < sortedLessons.Count; i++)
             {
+                var lesson = sortedLessons[i];
                 var lessonEnd = lesson.End ?? lesson.Begin!.Value.AddMinutes(90);
                 var subEmoji = EmojiProvider.GetSubjectEmoji(lesson.SubjectName);
 
                 sb.AppendLine($"{subEmoji} <b>{lesson.Begin:HH:mm} - {lessonEnd:HH:mm}</b> {lesson.SubjectName}");
-
                 sb.AppendLine(FormatFullLocation(lesson));
 
-                sb.AppendLine("------------------------------------");
+                if (i < sortedLessons.Count - 1)
+                {
+                    sb.AppendLine("------------------------------------");
+                }
             }
 
-            // Разделитель между днями (двойная черта)
             sb.AppendLine();
             sb.AppendLine("==============================");
             sb.AppendLine();
