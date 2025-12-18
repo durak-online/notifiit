@@ -5,13 +5,25 @@ using Telegram.Bot.Types.ReplyMarkups;
 
 namespace NotiFIITBot.Domain;
 
-public class BotMessageService(ITelegramBotClient botClient, CancellationTokenSource cts)
+public class BotMessageService(ITelegramBotClient botClient, CancellationTokenSource cts,
+    IKeyboardService keyboardService)
 {
     private readonly ITelegramBotClient botClient = botClient;
     private readonly CancellationTokenSource cts = cts;
+    private readonly IKeyboardService keyboardService = keyboardService;
 
-    public async Task SendMessage(long id, string message, ReplyMarkup? replyMarkup = null)
+    private readonly ReplyKeyboardRemove keyboardRemove = new();
+
+    public async Task SendMessage(long id, string message, ReplyMarkup? replyMarkup)
     {
+        replyMarkup ??= keyboardRemove;
+        await botClient.SendMessage(id, message, ParseMode.Html,
+            replyMarkup: replyMarkup, cancellationToken: cts.Token);
+    }
+
+    public async Task SendMessage(long id, string message, bool useMainKeyboard = false)
+    {
+        var replyMarkup = useMainKeyboard ? (ReplyMarkup)keyboardService.MainKeyboard : keyboardRemove;
         await botClient.SendMessage(id, message, ParseMode.Html,
             replyMarkup: replyMarkup, cancellationToken: cts.Token);
     }

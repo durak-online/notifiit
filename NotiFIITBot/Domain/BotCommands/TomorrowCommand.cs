@@ -3,13 +3,12 @@ using Telegram.Bot.Types;
 
 namespace NotiFIITBot.Domain.BotCommands;
 
+[KeyboardText("🔜 Завтра")]
 public class TomorrowCommand(BotMessageService botService, ScheduleService scheduleService) : BaseCommand(botService)
 {
     private readonly ScheduleService scheduleService = scheduleService;
 
     public override string CommandName => "/tmrw";
-    
-    public override string ButtonName => "🔜 Завтра";
 
     public override string Description => "Отправляет расписание на завтра";
 
@@ -20,7 +19,8 @@ public class TomorrowCommand(BotMessageService botService, ScheduleService sched
         var tomorrowSched = await scheduleService.GetSchedForPeriodAsync(message.Chat.Id, SchedulePeriod.Tomorrow);
         await botService.SendMessage(
             message.Chat.Id,
-            tomorrowSched
+            tomorrowSched,
+            useMainKeyboard: true
         );
     }
 }

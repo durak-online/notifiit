@@ -15,7 +15,7 @@ public class SlotsCommand(BotMessageService botService) : BaseCommand(botService
 
     public override async Task RunCommand(Message message)
     {
-        await botService.SendMessage(message.Chat.Id, "Додепчик пошел");
+        await botService.SendMessage(message.Chat.Id, "Додепчик пошел", useMainKeyboard: true);
         await botService.SendEmoji(
             message.Chat.Id,
             DiceEmoji.SlotMachine

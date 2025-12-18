@@ -25,9 +25,9 @@ public class HelpCommand(BotMessageService botService, IServiceProvider serviceP
         var isAdmin = IsAdmin(message.From!);
 
         if (isAdmin)
-            await botService.SendMessage(message.Chat.Id, adminHelpMessage);
+            await botService.SendMessage(message.Chat.Id, adminHelpMessage, useMainKeyboard: true);
         else
-            await botService.SendMessage(message.Chat.Id, commonHelpMessage);
+            await botService.SendMessage(message.Chat.Id, commonHelpMessage, useMainKeyboard: true);
     }
 
     private void ComputeHelpMessages()

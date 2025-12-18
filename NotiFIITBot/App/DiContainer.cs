@@ -46,6 +46,7 @@ public static class DiContainer
         services.AddScoped<ScheduleService>();
         services.AddScoped<RegistrationService>();
         services.AddScoped<BotMessageService>();
+        services.AddScoped<IKeyboardService, KeyboardService>();
 
         services.AddTransient<DbSeeder>();
 
