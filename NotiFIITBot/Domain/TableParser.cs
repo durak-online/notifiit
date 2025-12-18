@@ -4,6 +4,7 @@ using Google.Apis.Services;
 using Google.Apis.Sheets.v4;
 using Google.Apis.Sheets.v4.Data;
 using NotiFIITBot.Consts;
+using Serilog;
 
 namespace NotiFIITBot.Domain;
 
@@ -66,26 +67,34 @@ public partial class TableParser
 
     public static List<Lesson> GetTableData(string apiKey, string spreadsheetId, string range)
     {
-        var service = new SheetsService(new BaseClientService.Initializer
+        try
         {
-            ApiKey = apiKey,
-            ApplicationName = "Schedule Parser"
-        });
+            var service = new SheetsService(new BaseClientService.Initializer
+            {
+                ApiKey = apiKey,
+                ApplicationName = "Schedule Parser"
+            });
 
-        var values = GetValuesWithMergedCells(spreadsheetId, range, service);
-        var gridData = GetGridDataWithMergedCells(spreadsheetId, range, service);
+            var values = GetValuesWithMergedCells(spreadsheetId, range, service);
+            var gridData = GetGridDataWithMergedCells(spreadsheetId, range, service);
 
-        if (values == null || values.Count < 4)
-            return new List<Lesson>();
-        ;
+            if (values == null || values.Count < 4)
+                return new List<Lesson>();
+            ;
 
-        // Определение групп
-        var columnGroupMap = BuildGroupMap(values[1]);
+            // Определение групп
+            var columnGroupMap = BuildGroupMap(values[1]);
 
-        // Определение подгрупп
-        var columnSubgroupMap = BuildSubgroupMap(values[2]);
+            // Определение подгрупп
+            var columnSubgroupMap = BuildSubgroupMap(values[2]);
 
-        return ProcessSheetRows(values, gridData, columnGroupMap, columnSubgroupMap);
+            return ProcessSheetRows(values, gridData, columnGroupMap, columnSubgroupMap);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Failed to get or process table data for {Id} : {Range}(id:range)",spreadsheetId ,range);
+            return new List<Lesson>(); 
+        }
     }
 
     private static List<Lesson> ProcessSheetRows(IList<IList<object>> values, GridData gridData,
