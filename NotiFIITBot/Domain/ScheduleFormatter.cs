@@ -4,56 +4,90 @@ namespace NotiFIITBot.Domain;
 
 public static class ScheduleFormatter
 {
-    private static class Emoji
-    {
-        public static string Clock = "🕒";
-        public static string Subject = "🎓";
-        public static string Teacher = "👤";
-        public static string Calendar = "📅";
-        public static string Location = "🏛";
-        public static string Monkey = "🙊";
-    }
-
     public static string BuildDailySchedule(DateOnly date, List<Lesson> lessons)
     {
         var strBuilder = new StringBuilder();
-
-        strBuilder.Append($"{Emoji.Calendar} {DayOfWeekInRus(lessons[0].DayOfWeek)} ({date:dd.MM.yyyy}):\n\n");
+        strBuilder.AppendLine($"{EmojiProvider.Calendar} {DayOfWeekInRus(lessons[0].DayOfWeek)} ({date:dd.MM.yyyy})");
+        strBuilder.AppendLine();
 
         if (lessons.Count == 0)
         {
-            strBuilder.AppendLine($"Занятий нет {Emoji.Monkey}");
+            strBuilder.AppendLine($"Занятий нет {EmojiProvider.Monkey}");
+            strBuilder.AppendLine();
+            
             return strBuilder.ToString();
         }
         foreach (var lesson in lessons)
         {
-            strBuilder.Append(FormatLesson(lesson));
+            var lessonEnd = lesson.End ?? lesson.Begin!.Value.AddMinutes(90);
+            strBuilder.AppendLine($"{EmojiProvider.Clock} <b>{lesson.Begin:HH:mm} - {lessonEnd:HH:mm}</b>");
+
+            var subEmoji = EmojiProvider.GetSubjectEmoji(lesson.SubjectName);
+            var teacher = string.IsNullOrEmpty(lesson.TeacherName) ? "" : $" - {lesson.TeacherName}";
+            strBuilder.AppendLine($"{subEmoji} {lesson.SubjectName}<i>{teacher}</i>");
+
+            strBuilder.AppendLine(FormatFullLocation(lesson));
+            
+            strBuilder.AppendLine("------------------------------------");
             strBuilder.AppendLine();
         }
 
         return strBuilder.ToString();
     }
-
-    public static string FormatLesson(Lesson lesson)
+    
+    public static string BuildWeeklySchedule(Dictionary<DateOnly, List<Lesson>> schedule)
     {
-        var lessonEnd = lesson.End == null
-            ? lesson.Begin!.Value.AddHours(1).AddMinutes(30)
-            : lesson.End;
+        var sb = new StringBuilder();
 
-        var time = $"{Emoji.Clock} №{lesson.PairNumber} {lesson.Begin:HH:mm}-{lessonEnd:HH:mm}";
-        var subject = $"{Emoji.Subject} {lesson.SubjectName}";
-        var teacher = $"{Emoji.Teacher} Преподаватель: " +
-            $"{(string.IsNullOrEmpty(lesson.TeacherName) ? "-" : lesson.TeacherName)}";
+        foreach (var (date, lessons) in schedule.OrderBy(x => x.Key))
+        {
+            sb.AppendLine($"{EmojiProvider.Calendar} {DayOfWeekInRus(date.DayOfWeek)} ({date:dd.MM.yyyy})");
+            sb.AppendLine();
 
-        // some shit
-        var room = $"{Emoji.Location} " +
-            $"{(string.IsNullOrEmpty(lesson.ClassRoom) 
-            ? "Ауд. -" 
-            : lesson.ClassRoom.ToLower() == "онлайн" ? lesson.ClassRoom : $"Ауд. {lesson.ClassRoom}")}";
-        var location = $"{(string.IsNullOrEmpty(lesson.AuditoryLocation) 
-            || lesson.AuditoryLocation.ToLower() == "онлайн" ? "" : $"; {lesson.AuditoryLocation}")}";
+            if (lessons.Count == 0)
+            {
+                sb.AppendLine($"Выходной {EmojiProvider.Monkey}");
+                sb.AppendLine("==============================");
+                sb.AppendLine();
+                continue;
+            }
+            
+            var sortedLessons = lessons.OrderBy(l => l.Begin).ToList();
+            for (var i = 0; i < sortedLessons.Count; i++)
+            {
+                var lesson = sortedLessons[i];
+                var lessonEnd = lesson.End ?? lesson.Begin!.Value.AddMinutes(90);
+                var subEmoji = EmojiProvider.GetSubjectEmoji(lesson.SubjectName);
 
-        return $"{time}\n{subject}\n{teacher}\n{room}{location}\n";
+                sb.AppendLine($"{subEmoji} <b>{lesson.Begin:HH:mm} - {lessonEnd:HH:mm}</b> {lesson.SubjectName}");
+                sb.AppendLine(FormatFullLocation(lesson));
+
+                if (i < sortedLessons.Count - 1)
+                {
+                    sb.AppendLine("------------------------------------");
+                }
+            }
+
+            sb.AppendLine();
+            sb.AppendLine("==============================");
+            sb.AppendLine();
+        }
+
+        return sb.ToString();
+    }
+    
+    private static string FormatFullLocation(Lesson lesson)
+    {
+        var loc = lesson.AuditoryLocation ?? "";
+        var room = lesson.ClassRoom ?? "-";
+        if (loc.Contains("онлайн", StringComparison.OrdinalIgnoreCase) || 
+            room.Contains("онлайн", StringComparison.OrdinalIgnoreCase))
+        {
+            return $"{EmojiProvider.GetLocationEmoji("Онлайн")} Онлайн";
+        }
+        var locEmoji = EmojiProvider.GetLocationEmoji(loc);
+        var locPart = string.IsNullOrEmpty(loc) ? "" : $"{loc}; ";
+        return $"{locEmoji} {locPart}<i>Ауд. {room}</i>";
     }
 
     private static string DayOfWeekInRus(DayOfWeek? dayOfWeek)

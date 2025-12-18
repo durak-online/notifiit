@@ -16,7 +16,7 @@ public class TwoWeekCommand(BotMessageService botService, ScheduleService schedu
 
     public override async Task RunCommand(Message message)
     {
-        var twoWeekSched = await scheduleService.GetSchedForPeriodAsync(message.Chat.Id, SchedulePeriod.TwoWeeks);
+        var twoWeekSched = await scheduleService.GetSchedForPeriodAsync(message.Chat.Id, SchedulePeriod.NextWeek);
         await botService.SendMessage(
             message.Chat.Id,
             twoWeekSched,

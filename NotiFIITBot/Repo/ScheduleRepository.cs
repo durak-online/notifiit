@@ -104,7 +104,7 @@ public class ScheduleRepository(
                 SchedulePeriod.Today => new() { now.Value.DayOfWeek },
                 SchedulePeriod.Tomorrow => new() { now.Value.AddDays(1).DayOfWeek },
                 SchedulePeriod.Week => Enum.GetValues<DayOfWeek>().ToList(),
-                SchedulePeriod.TwoWeeks => Enum.GetValues<DayOfWeek>().ToList(),
+                SchedulePeriod.NextWeek => Enum.GetValues<DayOfWeek>().ToList(),
                 _ => throw new ArgumentOutOfRangeException(nameof(period))
             };
 
