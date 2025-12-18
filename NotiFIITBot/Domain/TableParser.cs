@@ -143,39 +143,47 @@ public partial class TableParser
     {
         for (var j = 2; j < row.Count; j++)
         {
-            var lessonCell = row[j]?.ToString();
-
-            if (string.IsNullOrWhiteSpace(lessonCell) || !columnSubgroupMap.ContainsKey(j)) continue;
-
-            var lessonInfo = GetCleanLessonInfo(lessonCell);
-            if (lessonInfo == null) continue;
-
-            var location = GetLocationByColor(gridData.RowData[i].Values[j]);
-            if (lessonCell.Contains("Физкультура") || lessonCell.Contains("Фузкультура")) //хардкод, чтобы не было аудитории у физ-ры
-                location = null;
-            if (location == "Онлайн") lessonInfo.ClassRoom = "Онлайн"; //вроде надо было
-            var menGroup = int.Parse(columnGroupMap[j].Split("-")[1]);
-
-            var eveness = GetEvenness(values, i, currentTime, j);
-
-            var lessonKey =
-                $"{currentDayOfWeek}_{currentPairNumber}_{currentTime}_{menGroup}_{columnSubgroupMap[j]}_{lessonInfo.SubjectName}_{lessonInfo.TeacherName}_{lessonInfo.ClassRoom}";
-            if (seenLessons.Add(lessonKey))
+            try
             {
-                var lesson = new Lesson(
-                    currentPairNumber,
-                    lessonInfo.SubjectName,
-                    lessonInfo.TeacherName,
-                    lessonInfo.ClassRoom,
-                    lessonInfo.Begin ?? currentTime,
-                    lessonInfo.End ?? null,
-                    location,
-                    columnSubgroupMap[j],
-                    menGroup,
-                    eveness,
-                    ParseDayOfWeek(currentDayOfWeek)
-                );
-                lessons.Add(lesson);
+                var lessonCell = row[j]?.ToString();
+
+                if (string.IsNullOrWhiteSpace(lessonCell) || !columnSubgroupMap.ContainsKey(j)) continue;
+
+                var lessonInfo = GetCleanLessonInfo(lessonCell);
+                if (lessonInfo == null) continue;
+
+                var location = GetLocationByColor(gridData.RowData[i].Values[j]);
+                if (lessonCell.Contains("Физкультура") || lessonCell.Contains("Фузкультура")) //хардкод, чтобы не было аудитории у физ-ры
+                    location = null;
+                if (location == "Онлайн") lessonInfo.ClassRoom = "Онлайн"; //вроде надо было
+                var menGroup = int.Parse(columnGroupMap[j].Split("-")[1]);
+
+                var eveness = GetEvenness(values, i, currentTime, j);
+
+                var lessonKey =
+                    $"{currentDayOfWeek}_{currentPairNumber}_{currentTime}_{menGroup}_{columnSubgroupMap[j]}_{lessonInfo.SubjectName}_{lessonInfo.TeacherName}_{lessonInfo.ClassRoom}";
+                if (seenLessons.Add(lessonKey))
+                {
+                    var lesson = new Lesson(
+                        currentPairNumber,
+                        lessonInfo.SubjectName,
+                        lessonInfo.TeacherName,
+                        lessonInfo.ClassRoom,
+                        lessonInfo.Begin ?? currentTime,
+                        lessonInfo.End ?? null,
+                        location,
+                        columnSubgroupMap[j],
+                        menGroup,
+                        eveness,
+                        ParseDayOfWeek(currentDayOfWeek)
+                    );
+                    lessons.Add(lesson);
+                }
+            }
+            catch (Exception ex)
+            {
+                var cellContent = (j < row.Count) ? row[j]?.ToString() : "N/A";
+                Log.Error(ex, "Failed to process cell at row {Row}, col {Col}. Content: '{Content}'", i + 1, j + 1, cellContent);
             }
         }
     }
