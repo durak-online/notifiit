@@ -4,56 +4,89 @@ namespace NotiFIITBot.Domain;
 
 public static class ScheduleFormatter
 {
-    private static class Emoji
-    {
-        public static string Clock = "🕒";
-        public static string Subject = "🎓";
-        public static string Teacher = "👤";
-        public static string Calendar = "📅";
-        public static string Location = "🏛";
-        public static string Monkey = "🙊";
-    }
-
     public static string BuildDailySchedule(DateOnly date, List<Lesson> lessons)
     {
-        var strBuilder = new StringBuilder();
-
-        strBuilder.Append($"{Emoji.Calendar} {DayOfWeekInRus(lessons[0].DayOfWeek)} ({date}):\n\n");
+        var sb = new StringBuilder();
+        sb.AppendLine($"📅 {DayOfWeekInRus(lessons[0].DayOfWeek)} ({date:dd.MM.yyyy})");
+        sb.AppendLine();
 
         if (lessons.Count == 0)
         {
-            strBuilder.AppendLine($"Занятий нет {Emoji.Monkey}");
-            return strBuilder.ToString();
+            sb.AppendLine($"Занятий нет {EmojiProvider.Monkey}");
+            sb.AppendLine();
+            
+            return sb.ToString();
         }
         foreach (var lesson in lessons)
         {
-            strBuilder.Append(FormatLesson(lesson));
-            strBuilder.AppendLine();
+            var lessonEnd = lesson.End ?? lesson.Begin!.Value.AddMinutes(90);
+            sb.AppendLine($"{EmojiProvider.Clock} <b>{lesson.Begin:HH:mm} - {lessonEnd:HH:mm}</b>");
+
+            var subEmoji = EmojiProvider.GetSubjectEmoji(lesson.SubjectName);
+            var teacher = string.IsNullOrEmpty(lesson.TeacherName) ? "" : $" - {lesson.TeacherName}";
+            sb.AppendLine($"{subEmoji} {lesson.SubjectName}<i>{teacher}</i>");
+
+            sb.AppendLine(FormatFullLocation(lesson));
+            
+            sb.AppendLine("------------------------------------");
+            sb.AppendLine();
         }
 
-        return strBuilder.ToString();
+        return sb.ToString();
     }
-
-    public static string FormatLesson(Lesson lesson)
+    
+    public static string BuildWeeklySchedule(Dictionary<DateOnly, List<Lesson>> schedule)
     {
-        var lessonEnd = lesson.End == null
-            ? lesson.Begin!.Value.AddHours(1).AddMinutes(30)
-            : lesson.End;
+        var sb = new StringBuilder();
 
-        var time = $"{Emoji.Clock} №{lesson.PairNumber} {lesson.Begin:HH:mm}-{lessonEnd:HH:mm}";
-        var subject = $"{Emoji.Subject} {lesson.SubjectName}";
-        var teacher = $"{Emoji.Teacher} Преподаватель: " +
-            $"{(string.IsNullOrEmpty(lesson.TeacherName) ? "-" : lesson.TeacherName)}";
+        foreach (var (date, lessons) in schedule.OrderBy(x => x.Key))
+        {
+            // Заголовок дня: 📅 Понедельник (15.12.2025)
+            sb.AppendLine($"📅 {DayOfWeekInRus(date.DayOfWeek)} ({date:dd.MM.yyyy})");
+            sb.AppendLine();
 
-        // some shit
-        var room = $"{Emoji.Location} " +
-            $"{(string.IsNullOrEmpty(lesson.ClassRoom) 
-            ? "Ауд. -" 
-            : lesson.ClassRoom.ToLower() == "онлайн" ? lesson.ClassRoom : $"Ауд. {lesson.ClassRoom}")}";
-        var location = $"{(string.IsNullOrEmpty(lesson.AuditoryLocation) 
-            || lesson.AuditoryLocation.ToLower() == "онлайн" ? "" : $"; {lesson.AuditoryLocation}")}";
+            if (lessons.Count == 0)
+            {
+                sb.AppendLine($"Выходной {EmojiProvider.Monkey}");
+                sb.AppendLine("==============================");
+                sb.AppendLine();
+                continue;
+            }
 
-        return $"{time}\n{subject}\n{teacher}\n{room}{location}\n";
+            // Перебираем уроки по порядку
+            foreach (var lesson in lessons.OrderBy(l => l.Begin))
+            {
+                var lessonEnd = lesson.End ?? lesson.Begin!.Value.AddMinutes(90);
+                var subEmoji = EmojiProvider.GetSubjectEmoji(lesson.SubjectName);
+
+                sb.AppendLine($"{subEmoji} <b>{lesson.Begin:HH:mm} - {lessonEnd:HH:mm}</b> {lesson.SubjectName}");
+
+                sb.AppendLine(FormatFullLocation(lesson));
+
+                sb.AppendLine("------------------------------------");
+            }
+
+            // Разделитель между днями (двойная черта)
+            sb.AppendLine();
+            sb.AppendLine("==============================");
+            sb.AppendLine();
+        }
+
+        return sb.ToString();
+    }
+    
+    private static string FormatFullLocation(Lesson lesson)
+    {
+        var loc = lesson.AuditoryLocation ?? "";
+        var room = lesson.ClassRoom ?? "-";
+        if (loc.Contains("онлайн", StringComparison.OrdinalIgnoreCase) || 
+            room.Contains("онлайн", StringComparison.OrdinalIgnoreCase))
+        {
+            return $"{EmojiProvider.GetLocationEmoji("Онлайн")} Онлайн";
+        }
+        var locEmoji = EmojiProvider.GetLocationEmoji(loc);
+        var locPart = string.IsNullOrEmpty(loc) ? "" : $"{loc}; ";
+        return $"{locEmoji} {locPart}<i>Ауд. {room}</i>";
     }
 
     private static string DayOfWeekInRus(DayOfWeek? dayOfWeek)
@@ -67,7 +100,7 @@ public static class ScheduleFormatter
             DayOfWeek.Friday => "Пятница",
             DayOfWeek.Saturday => "Суббота",
             DayOfWeek.Sunday => "Воскресенье",
-            _ => "Понедельник"
+            _ => "День"
         };
     }
 }

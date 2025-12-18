@@ -31,14 +31,19 @@ public class ScheduleService(IScheduleRepository scheduleRepository, IUserReposi
 
                 return $"Пар для группы МЕН-{user.MenGroup}-{user.SubGroup} нет 🎉";
             }
-
-            var strBuilder = new StringBuilder();
-
-            foreach (var (date, lessons) in scheduleDays)
-                strBuilder.Append(ScheduleFormatter.BuildDailySchedule(date, lessons));
             
+            if (period == SchedulePeriod.Today || period == SchedulePeriod.Tomorrow)
+            {
+                var strBuilder = new StringBuilder();
+                foreach (var (date, lessons) in scheduleDays)
+                {
+                    strBuilder.Append(ScheduleFormatter.BuildDailySchedule(date, lessons));
+                }
+                return strBuilder.ToString();
+            }
 
-            return strBuilder.ToString();
+            var scheduleDict = scheduleDays.ToDictionary(x => x.Date, x => x.Lessons);
+            return ScheduleFormatter.BuildWeeklySchedule(scheduleDict);
         }
         catch (Exception ex)
         {
@@ -57,6 +62,10 @@ public class ScheduleService(IScheduleRepository scheduleRepository, IUserReposi
         var today = DateOnly.FromDateTime(DateTime.Now);
         DateOnly startDay;
         int daysCount;
+        var daysSinceMonday = today.DayOfWeek == DayOfWeek.Sunday 
+            ? 6 
+            : (int)today.DayOfWeek - 1;
+        var currentMonday = today.AddDays(-daysSinceMonday);
 
         switch (period)
         {
@@ -68,16 +77,18 @@ public class ScheduleService(IScheduleRepository scheduleRepository, IUserReposi
                 startDay = today.AddDays(1);
                 daysCount = 1;
                 break;
-            default:
-            {
-                    var daysFromMonday = today.DayOfWeek == DayOfWeek.Sunday
-                        ? -1  // +1 день от воскресенья чтобы получать на след. неделю уже
-                        : ((int)today.DayOfWeek + 6) % 7;
-                    startDay = today.AddDays(-daysFromMonday);
-
-                    daysCount = period == SchedulePeriod.TwoWeeks ? 14 : 7;
+            case SchedulePeriod.Week: 
+                startDay = currentMonday;
+                daysCount = 7;
                 break;
-            }
+            case SchedulePeriod.NextWeek: 
+                startDay = currentMonday.AddDays(7);
+                daysCount = 7;
+                break;
+            default:
+                startDay = today;
+                daysCount = 7; 
+                break;
         }
 
         var result = new List<(DateOnly Date, List<Lesson> Lessons)>();
@@ -116,8 +127,8 @@ public class ScheduleService(IScheduleRepository scheduleRepository, IUserReposi
                 })
                 .OrderBy(l => l.PairNumber)
                 .ToList();
-
-            if (dailyLessons.Count != 0)
+            
+            if (period == SchedulePeriod.Week || period == SchedulePeriod.NextWeek || dailyLessons.Count > 0)
             {
                 result.Add((currentDate, dailyLessons));
             }

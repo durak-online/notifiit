@@ -19,7 +19,7 @@ public class SchedCommand(BotMessageService botService) : BaseCommand(botService
             .AddButton("Завтра", nameof(SchedulePeriod.Tomorrow))
             .AddNewRow()
             .AddButton("Неделя", nameof(SchedulePeriod.Week))
-            .AddButton("2 недели", nameof(SchedulePeriod.TwoWeeks));
+            .AddButton("2 недели", nameof(SchedulePeriod.NextWeek));
 
         await botService.SendMessage(
             message.Chat.Id, 
