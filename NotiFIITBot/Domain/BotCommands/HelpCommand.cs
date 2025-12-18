@@ -11,7 +11,7 @@ public class HelpCommand(BotMessageService botService, IServiceProvider serviceP
 
     private bool isComputed = false;
 
-    public override string Name => "/help";
+    public override string CommandName => "/help";
 
     public override string Description => "Пишет справку по всем командам";
 
@@ -25,9 +25,9 @@ public class HelpCommand(BotMessageService botService, IServiceProvider serviceP
         var isAdmin = IsAdmin(message.From!);
 
         if (isAdmin)
-            await botService.SendMessage(message.Chat.Id, adminHelpMessage);
+            await botService.SendMessage(message.Chat.Id, adminHelpMessage, useMainKeyboard: true);
         else
-            await botService.SendMessage(message.Chat.Id, commonHelpMessage);
+            await botService.SendMessage(message.Chat.Id, commonHelpMessage, useMainKeyboard: true);
     }
 
     private void ComputeHelpMessages()
@@ -36,10 +36,10 @@ public class HelpCommand(BotMessageService botService, IServiceProvider serviceP
 
         var commonCommands = commands
             .Where(c => !c.IsAdminCommand)
-            .OrderBy(c => c.Name);
+            .OrderBy(c => c.CommandName);
         var adminCommands = commands
             .Where(c => c.IsAdminCommand)
-            .OrderBy(c => c.Name);
+            .OrderBy(c => c.CommandName);
 
         var strBuilder = new StringBuilder();
         strBuilder.Append("<b>Доступные команды:</b>\n\n");
@@ -47,16 +47,16 @@ public class HelpCommand(BotMessageService botService, IServiceProvider serviceP
 
         foreach (var command in commonCommands)
         {
-            if (command.Name != "" && command.Description != "")
-                strBuilder.Append($"• {command.Name} - {command.Description}\n");
+            if (command.CommandName != "" && command.Description != "")
+                strBuilder.Append($"• {command.CommandName} - {command.Description}\n");
         }
         commonHelpMessage = strBuilder.ToString();
 
         strBuilder.Append("\n<b>АДМИНСКИЕ КОМАНДЫ</b>\n\n");
         foreach (var command in adminCommands)
         {
-            if (command.Name != "" && command.Description != "")
-                strBuilder.Append($"• {command.Name} - {command.Description}\n");
+            if (command.CommandName != "" && command.Description != "")
+                strBuilder.Append($"• {command.CommandName} - {command.Description}\n");
         }
         adminHelpMessage = strBuilder.ToString();
 

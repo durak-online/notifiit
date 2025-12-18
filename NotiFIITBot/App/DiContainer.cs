@@ -37,6 +37,8 @@ public static class DiContainer
         services.AddSingleton(Log.Logger);
         services.AddLogging(loggingBuilder => loggingBuilder.AddSerilog());
         services.AddSingleton<ILoggerFactory, LoggerFactory>();
+        
+        services.AddMemoryCache();
 
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IScheduleRepository, ScheduleRepository>();
@@ -44,6 +46,7 @@ public static class DiContainer
         services.AddScoped<ScheduleService>();
         services.AddScoped<RegistrationService>();
         services.AddScoped<BotMessageService>();
+        services.AddScoped<IKeyboardService, KeyboardService>();
 
         services.AddTransient<DbSeeder>();
 

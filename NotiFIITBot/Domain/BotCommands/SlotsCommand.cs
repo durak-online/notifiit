@@ -7,7 +7,7 @@ public class SlotsCommand(BotMessageService botService) : BaseCommand(botService
 {
     // делаем так, чтобы команда была скрытой и
     // не высвечивалась в help
-    public override string Name => "";
+    public override string CommandName => "";
 
     public override string Description => "";
 
@@ -15,7 +15,7 @@ public class SlotsCommand(BotMessageService botService) : BaseCommand(botService
 
     public override async Task RunCommand(Message message)
     {
-        await botService.SendMessage(message.Chat.Id, "Додепчик пошел");
+        await botService.SendMessage(message.Chat.Id, "Додепчик пошел", useMainKeyboard: true);
         await botService.SendEmoji(
             message.Chat.Id,
             DiceEmoji.SlotMachine

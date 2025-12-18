@@ -9,7 +9,7 @@ public class StopCommand(BotMessageService botService, CancellationTokenSource c
     private readonly CancellationTokenSource cts = cts;
     private readonly ILogger logger = loggerFactory.CreateLogger(nameof(StopCommand));
 
-    public override string Name => "/stop";
+    public override string CommandName => "/stop";
 
     public override string Description => "Останавливает бота и всё приложение в целом";
 

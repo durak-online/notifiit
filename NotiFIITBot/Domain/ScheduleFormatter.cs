@@ -18,7 +18,7 @@ public static class ScheduleFormatter
     {
         var strBuilder = new StringBuilder();
 
-        strBuilder.Append($"{Emoji.Calendar} {DayOfWeekInRus(lessons[0].DayOfWeek)} ({date}):\n\n");
+        strBuilder.Append($"{Emoji.Calendar} {DayOfWeekInRus(lessons[0].DayOfWeek)} ({date:dd.MM.yyyy}):\n\n");
 
         if (lessons.Count == 0)
         {

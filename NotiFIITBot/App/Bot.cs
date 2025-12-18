@@ -1,36 +1,35 @@
-﻿using Serilog;
+﻿using NotiFIITBot.Consts;
+using NotiFIITBot.Domain;
+using NotiFIITBot.Domain.BotCommands;
+using NotiFIITBot.Logging;
+using NotiFIITBot.Metrics;
+using NotiFIITBot.Repo;
+using Serilog;
+using System.Text.RegularExpressions;
 using Telegram.Bot;
 using Telegram.Bot.Exceptions;
 using Telegram.Bot.Polling;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
-using NotiFIITBot.Consts;
-using NotiFIITBot.Domain;
-using NotiFIITBot.Repo;
-using System.Text.RegularExpressions;
-using NotiFIITBot.Logging;
-using NotiFIITBot.Metrics;
-using NotiFIITBot.Domain.BotCommands;
+using Telegram.Bot.Types.ReplyMarkups;
 
 namespace NotiFIITBot.App;
 
 public partial class Bot(
     IUserRepository userRepository,
-    ScheduleService scheduleService,
     BotMessageService botService,
     RegistrationService registrationService,
     BotCommandManager botCommandManager,
-    MetricsService metricsService,
+    IScheduleRepository scheduleRepository,
     CancellationTokenSource cts,
     ILoggerFactory loggerFactory
         )
 {
     private readonly IUserRepository userRepository = userRepository;
-    private readonly ScheduleService scheduleService = scheduleService;
     private readonly BotMessageService botService = botService;
     private readonly RegistrationService registrationService = registrationService;
     private readonly BotCommandManager botCommandManager = botCommandManager;
-    private readonly MetricsService metricsService = metricsService; 
+    private readonly IScheduleRepository scheduleRepository = scheduleRepository;
 
     private readonly CancellationTokenSource cts = cts;
     private readonly ILogger logger = loggerFactory.CreateLogger("BOT");
@@ -51,7 +50,7 @@ public partial class Bot(
 
             var receiverOptions = new ReceiverOptions
             {
-                AllowedUpdates = [UpdateType.Message, UpdateType.CallbackQuery],
+                AllowedUpdates = [UpdateType.Message],
                 DropPendingUpdates = true
             };
 
@@ -112,11 +111,6 @@ public partial class Bot(
                     await HandleMessage(message);
                     break;
 
-                case { CallbackQuery: { } cbQuery }:
-                    logger.Information($"Callback query from {cbQuery.From}");
-                    await HandleCallbackQuery(cbQuery);
-                    break;
-
                 default:
                     logger.Information($"Received {update.Type} update type, no handler for this type");
                     break;
@@ -126,34 +120,6 @@ public partial class Bot(
         {
             logger.Error($"Exception while handling update: {ex}");
         }
-    }
-
-
-    private async Task HandleCallbackQuery(CallbackQuery cbQuery)
-    {
-        var sched = "Произошла ошибка при получении расписания";
-        metricsService.RecordRequest(cbQuery.From.Id, "Inline", cbQuery.Data);
-
-        try
-        {
-            sched = await scheduleService.GetSchedForPeriodAsync(
-                cbQuery.From.Id, 
-                (SchedulePeriod)Enum.Parse(typeof(SchedulePeriod), cbQuery.Data)
-            );
-        }
-        catch (Exception ex)
-        {
-            logger.Error(ex, $"Can't handle CallbackQuery with data: {cbQuery.Data}, text: {cbQuery.Message?.Text}");
-        }
-        
-        await botService.EditMessage(
-            cbQuery.Message!.Chat,
-            cbQuery.Message.Id,
-            sched
-        );
-
-        // это надо, чтобы вверху в боте не было плашки "Загрузка"
-        await botService.AnswerCallbackQuery(cbQuery);
     }
 
     private async Task HandlePollingError(ITelegramBotClient botClient, Exception exception,
@@ -177,13 +143,13 @@ public partial class Bot(
         else
             await botService.SendMessage(
                 message.Chat.Id,
-                "Я не понял о чем ты...\nНапиши /help, если не знаешь с чего начать!"
+                "Я не понял о чем ты...\nНапиши /help, если не знаешь с чего начать"
             );
     }
 
     private async Task AnswerOnMessage(Message message)
     {
-        var isRegistering = await IsRegistering(message);
+        var isRegistering = await TryRegisterUser(message);
         if (isRegistering)
             return;
 
@@ -195,44 +161,54 @@ public partial class Bot(
             );
     }
 
-    private async Task<bool> IsRegistering(Message message)
+    private async Task<bool> TryRegisterUser(Message message)
     {
-        if (registrationService.ContainsUser(message.Chat.Id))
-        {
-            var match = MENGroupRegex().Match(message.Text!);
+        if (!registrationService.ContainsUser(message.Chat.Id))
+            return false;
+        
+        var match = MENGroupRegex().Match(message.Text!);
 
-            if (!match.Success)
+        if (!match.Success)
+        {
+            await botService.SendMessage(
+                message.Chat.Id,
+                "Ты ввел(а) неверный формат группы. Пришли мне МЕН-номер своей группы в формате МЕН-группа-подгруппа ещё раз"
+            );
+            return true;
+        }
+
+        if (int.TryParse(match.Groups["group"].Value, out var groupNum) &&
+            int.TryParse(match.Groups["subgroup"].Value, out var subGroupNum))
+        {
+            var isGroupValid = await scheduleRepository.GroupExistsAsync(groupNum, subGroupNum);
+            if (!isGroupValid)
             {
                 await botService.SendMessage(
                     message.Chat.Id,
-                    "Неверный формат группы. Убедись, что прислал что-то похожее на <b>МЕН-240801-1</b> и попробуй еще раз"
+                    $"Группа <b>МЕН-{groupNum}-{subGroupNum}</b> не найдена.\n" +
+                    "Возможно, ты ввел(а) неверный номер группы и подгруппы или расписание для неё еще не загружено."
                 );
                 return true;
             }
 
-            if (int.TryParse(match.Groups["group"].Value, out var groupNum) &&
-                int.TryParse(match.Groups["subgroup"].Value, out var subGroupNum))
+            var user = await userRepository.FindUserAsync(message.Chat.Id);
+            if (user != null)
             {
-                var user = await userRepository.FindUserAsync(message.Chat.Id);
-                if (user != null)
-                {
-                    user.MenGroup = groupNum;
-                    user.SubGroup = subGroupNum;
-                    await userRepository.UpdateUserAsync(user);
-                }
-                else
-                    await userRepository.AddUserAsync(message.Chat.Id, groupNum, subGroupNum);
-
-                registrationService.RemoveUser(message.Chat.Id);
-                await botService.SendMessage(
-                    message.Chat.Id,
-                    "Ты был успешно зарегистрирован! Посмотри список доступных команд в <b>Меню</b>"
-                );
+                user.MenGroup = groupNum;
+                user.SubGroup = subGroupNum;
+                await userRepository.UpdateUserAsync(user);
             }
+            else
+                await userRepository.AddUserAsync(message.Chat.Id, groupNum, subGroupNum);
 
-            return true;
+            registrationService.RemoveUser(message.Chat.Id);
+            await botService.SendMessage(
+                message.Chat.Id,
+                "Ты был(а) успешно зарегистрирован(а)! Посмотри список доступных команд в <b>Меню</b>",
+                useMainKeyboard: true
+            );
         }
 
-        return false;
+        return true;
     }
 }

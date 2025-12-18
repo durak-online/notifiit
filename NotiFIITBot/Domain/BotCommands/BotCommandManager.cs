@@ -7,7 +7,7 @@ public class BotCommandManager(IEnumerable<IBotCommand> commands, MetricsService
 {
     private readonly IEnumerable<IBotCommand> commands = commands;
     private readonly MetricsService metricsService = metricsService;
-
+    
     public async Task<bool> TryExecuteCommand(Message message)
     {
         foreach (var command in commands)
@@ -17,7 +17,7 @@ public class BotCommandManager(IEnumerable<IBotCommand> commands, MetricsService
                 await command.RunCommand(message);
                 if (!command.IsAdminCommand)
                     metricsService.RecordRequest(message.Chat.Id, 
-                        command.Name.Replace("/", ""), command.Name);
+                        command.CommandName.Replace("/", ""), command.CommandName);
                 return true;
             }
         }

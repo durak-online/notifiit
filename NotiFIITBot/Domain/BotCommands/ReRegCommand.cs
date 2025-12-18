@@ -6,7 +6,7 @@ public class ReRegCommand(BotMessageService botService, RegistrationService regi
 {
     private readonly RegistrationService registrationService = registrationService;
 
-    public override string Name => "/rereg";
+    public override string CommandName => "/rereg";
 
     public override string Description => "Изменяет твою МЕН группу и подгруппу";
 

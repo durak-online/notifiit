@@ -12,4 +12,6 @@ public interface IScheduleRepository
         int? subGroup,
         SchedulePeriod period,
         DateTime? now = null);
+
+    Task<bool> GroupExistsAsync(int groupId, int subGroup);
 }

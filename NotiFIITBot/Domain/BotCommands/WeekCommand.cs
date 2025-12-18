@@ -3,11 +3,12 @@ using Telegram.Bot.Types;
 
 namespace NotiFIITBot.Domain.BotCommands;
 
+[KeyboardText("🗓️ Текущая неделя")]
 public class WeekCommand(BotMessageService botService, ScheduleService scheduleService) : BaseCommand(botService)
 {
     private readonly ScheduleService scheduleService = scheduleService;
 
-    public override string Name => "/week";
+    public override string CommandName => "/week";
 
     public override string Description => "Отправляет расписание на текущую неделю";
 
@@ -18,7 +19,8 @@ public class WeekCommand(BotMessageService botService, ScheduleService scheduleS
         var weekSched = await scheduleService.GetSchedForPeriodAsync(message.Chat.Id, SchedulePeriod.Week);
         await botService.SendMessage(
             message.Chat.Id,
-            weekSched
+            weekSched,
+            useMainKeyboard: true
         );
     }
 }

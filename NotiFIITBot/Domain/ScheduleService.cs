@@ -4,6 +4,7 @@ using NotiFIITBot.Repo;
 using Serilog;
 using System.Text;
 
+
 namespace NotiFIITBot.Domain;
 
 public class ScheduleService(IScheduleRepository scheduleRepository, IUserRepository userRepository,
@@ -19,8 +20,7 @@ public class ScheduleService(IScheduleRepository scheduleRepository, IUserReposi
         {
             var user = await userRepository.FindUserAsync(userId);
             if (user == null)
-                return "Ты еще не зарегестрирован в базе данных";
-
+                return "Ты еще не зарегистрирован(а).\n Отправь мне /start или /rereg, чтобы это сделать";
             var scheduleDays = await GetFormattedScheduleAsync(user.MenGroup, user.SubGroup, period);
             if (scheduleDays == null || scheduleDays.Count == 0)
             {

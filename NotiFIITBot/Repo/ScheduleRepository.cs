@@ -71,6 +71,12 @@ public class ScheduleRepository(
             throw;
         }
     }
+    
+    public async Task<bool> GroupExistsAsync(int groupId, int subGroup)
+    {
+        return await _context.Set<LessonModel>()
+            .AnyAsync(l => l.MenGroup == groupId && l.SubGroup == subGroup);
+    }
 
     public async Task<List<LessonModel>> GetScheduleAsync(
         int groupNumber,
