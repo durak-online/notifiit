@@ -14,7 +14,7 @@ public class KeyboardService : IKeyboardService
         var today = GetCommandButtonText<TodayCommand>();
         var tmrw = GetCommandButtonText<TomorrowCommand>();
         var week = GetCommandButtonText<WeekCommand>();
-        var twoWeeks = GetCommandButtonText<TwoWeekCommand>();
+        var twoWeeks = GetCommandButtonText<NextWeekCommand>();
 
         MainKeyboard = new ReplyKeyboardMarkup(
         [

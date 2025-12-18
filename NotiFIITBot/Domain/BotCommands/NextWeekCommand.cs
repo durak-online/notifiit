@@ -3,14 +3,14 @@ using Telegram.Bot.Types;
 
 namespace NotiFIITBot.Domain.BotCommands;
 
-[KeyboardText("🔭 2 Недели")]
-public class TwoWeekCommand(BotMessageService botService, ScheduleService scheduleService) : BaseCommand(botService)
+[KeyboardText("🔭 Следующая неделя")]
+public class NextWeekCommand(BotMessageService botService, ScheduleService scheduleService) : BaseCommand(botService)
 {
     private readonly ScheduleService scheduleService = scheduleService;
 
-    public override string CommandName => "/2week";
+    public override string CommandName => "/next_week";
 
-    public override string Description => "Отправляет расписание на текущую и следующую неделю";
+    public override string Description => "Отправляет расписание на следующую неделю";
 
     public override bool IsAdminCommand => false;
 
