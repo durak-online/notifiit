@@ -14,4 +14,7 @@ public interface IScheduleRepository
         DateTime? now = null);
 
     Task<bool> GroupExistsAsync(int groupId, int subGroup);
+    Task<List<int>> GetAvailableCoursesAsync(); 
+    Task<List<int>> GetGroupsByCourseAsync(int course); 
+    Task<List<int>> GetSubgroupsByGroupAsync(int group);
 }

@@ -19,6 +19,7 @@ public partial class Bot(
     IUserRepository userRepository,
     BotMessageService botService,
     RegistrationService registrationService,
+    IKeyboardService keyboardService,
     BotCommandManager botCommandManager,
     IScheduleRepository scheduleRepository,
     CancellationTokenSource cts,
@@ -163,50 +164,78 @@ public partial class Bot(
 
     private async Task<bool> TryRegisterUser(Message message)
     {
-        if (!registrationService.ContainsUser(message.Chat.Id))
-            return false;
+        var chatId = message.Chat.Id;
         
-        var match = MENGroupRegex().Match(message.Text!);
+        var session = registrationService.GetRegSession(chatId);
+        if (session == null) 
+            return false; 
 
-        if (!match.Success)
+        var text = message.Text?.Trim();
+        if (string.IsNullOrEmpty(text)) 
+            return true;
+
+        if (!int.TryParse(text, out var selectedValue))
         {
-            await botService.SendMessage(
-                message.Chat.Id,
-                "Ты ввел(а) неверный формат группы. Пришли мне МЕН-номер своей группы в формате МЕН-группа-подгруппа ещё раз"
-            );
+            await botService.SendMessage(chatId, "Пожалуйста, выбери вариант кнопкой.");
             return true;
         }
 
-        if (int.TryParse(match.Groups["group"].Value, out var groupNum) &&
-            int.TryParse(match.Groups["subgroup"].Value, out var subGroupNum))
+        switch (session.Step)
         {
-            var isGroupValid = await scheduleRepository.GroupExistsAsync(groupNum, subGroupNum);
-            if (!isGroupValid)
-            {
+            case RegistrationStep.SelectCourse:
+                // Пользователь выбрал КУРС
+                var groups = await scheduleRepository.GetGroupsByCourseAsync(selectedValue);
+                if (groups.Count == 0)
+                {
+                    await botService.SendMessage(chatId, "Для этого курса нет групп. Выбери другой.");
+                    return true;
+                }
+
+                session.SelectedCourse = selectedValue;
+                session.Step = RegistrationStep.SelectGroup;
+                registrationService.UpdateRegSession(chatId, session);
+
+                var groupKeyboard = keyboardService.CreateGridKeyboard(groups.Select(g => g.ToString()).ToList(), 2);
+                await botService.SendMessage(chatId, $"Курс {selectedValue}. Теперь выбери группу:", groupKeyboard);
+                break;
+
+            case RegistrationStep.SelectGroup:
+                // Пользователь выбрал ГРУППУ
+                var subgroups = await scheduleRepository.GetSubgroupsByGroupAsync(selectedValue);
+                if (subgroups.Count == 0) 
+                    subgroups = [1]; // Если в базе пусто, предлагаем стандартную
+
+                session.SelectedGroup = selectedValue;
+                session.Step = RegistrationStep.SelectSubgroup;
+                registrationService.UpdateRegSession(chatId, session);
+
+                var subGroupKeyboard = keyboardService.CreateGridKeyboard(subgroups.Select(s => s.ToString()).ToList(), 2);
+                await botService.SendMessage(chatId, $"Группа {selectedValue}. Выбери подгруппу:", subGroupKeyboard);
+                break;
+
+            case RegistrationStep.SelectSubgroup:
+                // Пользователь выбрал ПОДГРУППУ 
+                
+                var user = await userRepository.FindUserAsync(chatId);
+                if (user != null)
+                {
+                    user.MenGroup = session.SelectedGroup;
+                    user.SubGroup = selectedValue;
+                    await userRepository.UpdateUserAsync(user);
+                }
+                else
+                {
+                    await userRepository.AddUserAsync(chatId, session.SelectedGroup, selectedValue);
+                }
+
+                registrationService.RemoveUser(chatId);
+
                 await botService.SendMessage(
-                    message.Chat.Id,
-                    $"Группа <b>МЕН-{groupNum}-{subGroupNum}</b> не найдена.\n" +
-                    "Возможно, ты ввел(а) неверный номер группы и подгруппы или расписание для неё еще не загружено."
+                    chatId,
+                    $"Готово! Ты записан в группу <b>МЕН-{session.SelectedGroup}-{selectedValue}</b>.",
+                    useMainKeyboard: true
                 );
-                return true;
-            }
-
-            var user = await userRepository.FindUserAsync(message.Chat.Id);
-            if (user != null)
-            {
-                user.MenGroup = groupNum;
-                user.SubGroup = subGroupNum;
-                await userRepository.UpdateUserAsync(user);
-            }
-            else
-                await userRepository.AddUserAsync(message.Chat.Id, groupNum, subGroupNum);
-
-            registrationService.RemoveUser(message.Chat.Id);
-            await botService.SendMessage(
-                message.Chat.Id,
-                "Ты был(а) успешно зарегистрирован(а)! Посмотри список доступных команд в <b>Меню</b>",
-                useMainKeyboard: true
-            );
+                break;
         }
 
         return true;

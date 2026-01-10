@@ -1,8 +1,12 @@
-﻿using Telegram.Bot.Types;
+﻿using NotiFIITBot.Repo;
+using Telegram.Bot.Types;
 
 namespace NotiFIITBot.Domain.BotCommands;
 
-public class ReRegCommand(BotMessageService botService, RegistrationService registrationService) : BaseCommand(botService)
+public class ReRegCommand(BotMessageService botService, 
+    RegistrationService registrationService,
+    IKeyboardService keyboardService,
+    IScheduleRepository scheduleRepo) : BaseCommand(botService)
 {
     private readonly RegistrationService registrationService = registrationService;
 
@@ -14,12 +18,20 @@ public class ReRegCommand(BotMessageService botService, RegistrationService regi
 
     public override async Task RunCommand(Message message)
     {
-        await botService.SendMessage(
-            message.Chat.Id,
-            "Меняем твою группу! Напиши свою группу в формате МЕН-группа-подгруппа для регистрации. " +
-            "Например <b>МЕН-240801-1</b>"
-        );
+        var courses = await scheduleRepo.GetAvailableCoursesAsync();
 
-        registrationService.AddUser(message.Chat.Id);
+        if (courses.Count == 0)
+        {
+            await botService.SendMessage(message.Chat.Id, "В базе пока нет расписания, регистрация невозможна.");
+            return;
+        }
+        registrationService.StartRegSession(message.Chat.Id);
+
+        var keyboard = keyboardService.CreateGridKeyboard(courses.Select(c => c.ToString()).ToList(), 2);
+        await botService.SendMessage(
+            message.Chat.Id, 
+            "Меняем твою группу! Выбери свой курс:", 
+            keyboard
+        );
     }
 }

@@ -77,6 +77,38 @@ public class ScheduleRepository(
         return await _context.Set<LessonModel>()
             .AnyAsync(l => l.MenGroup == groupId && l.SubGroup == subGroup);
     }
+    
+    public async Task<List<int>> GetAvailableCoursesAsync()
+    {
+        return await _context.Lessons
+            .AsNoTracking()
+            .Select(l => l.MenGroup / 100000)
+            .Distinct()
+            .OrderBy(c => c)
+            .ToListAsync(ct.Token);
+    }
+
+    public async Task<List<int>> GetGroupsByCourseAsync(int course)
+    {
+        return await _context.Lessons
+            .AsNoTracking()
+            .Where(l => l.MenGroup / 100000 == course)
+            .Select(l => l.MenGroup)
+            .Distinct()
+            .OrderBy(g => g)
+            .ToListAsync(ct.Token);
+    }
+
+    public async Task<List<int>> GetSubgroupsByGroupAsync(int group)
+    {
+        return await _context.Lessons
+            .AsNoTracking()
+            .Where(l => l.MenGroup == group && l.SubGroup != null && l.SubGroup != 0)
+            .Select(l => l.SubGroup!.Value)
+            .Distinct()
+            .OrderBy(s => s)
+            .ToListAsync(ct.Token);
+    }
 
     public async Task<List<LessonModel>> GetScheduleAsync(
         int groupNumber,

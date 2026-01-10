@@ -36,4 +36,17 @@ public class KeyboardService : IKeyboardService
         return attribute.ButtonName
                ?? throw new Exception($"Command {typeof(TCommand)} not found or has no button text");
     }
+    
+    public ReplyKeyboardMarkup CreateGridKeyboard(List<string> items, int columns)
+    {
+        var buttons = new List<KeyboardButton[]>();
+        for (int i = 0; i < items.Count; i += columns)
+        {
+            var row = items.Skip(i).Take(columns)
+                .Select(text => new KeyboardButton(text))
+                .ToArray();
+            buttons.Add(row);
+        }
+        return new ReplyKeyboardMarkup(buttons) { ResizeKeyboard = true, OneTimeKeyboard = true };
+    }
 }

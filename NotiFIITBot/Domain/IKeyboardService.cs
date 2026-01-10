@@ -5,4 +5,6 @@ namespace NotiFIITBot.Domain;
 public interface IKeyboardService
 {
     ReplyKeyboardMarkup MainKeyboard { get; }
+    
+    ReplyKeyboardMarkup CreateGridKeyboard(List<string> items, int columns);
 }
