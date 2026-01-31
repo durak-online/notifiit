@@ -79,15 +79,15 @@ public class ScheduleService(IScheduleRepository scheduleRepository, IUserReposi
                 break;
             case SchedulePeriod.Week: 
                 startDay = currentMonday;
-                daysCount = 7;
+                daysCount = 6;
                 break;
             case SchedulePeriod.NextWeek: 
                 startDay = currentMonday.AddDays(7);
-                daysCount = 7;
+                daysCount = 6;
                 break;
             default:
                 startDay = today;
-                daysCount = 7; 
+                daysCount = 6; 
                 break;
         }
 

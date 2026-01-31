@@ -2,12 +2,12 @@ namespace NotiFIITBot.Domain;
 
 public static class EmojiProvider
 {
-    public const string Clock = "🕒";
-    public const string Monkey = "🙊";
-    public const string Calendar = "📅";
+    public static readonly string Clock = "🕒";
+    public static readonly string Monkey = "🙊";
+    public static readonly string Calendar = "📅";
     
-    private const string DefaultSubject = "🎓";
-    private const string DefaultLocation = "🏛";
+    private static readonly string DefaultSubject = "🎓";
+    private static readonly string DefaultLocation = "🏛";
 
     private static readonly List<Emoji> Subjects =
     [
@@ -15,7 +15,7 @@ public static class EmojiProvider
         new("🧠 ", "Математический анализ кружок"),
         new("🧩", "Математический анализ", "Матан"),
         new("📚", "ДМ", "Алгебра и геометрия", "Дискретка", "Дискретная математика", "Алгем"),
-        new("💀", "Теория вероятностей", "Тервер"),
+        new("🎲", "Теория вероятностей", "Тервер"),
         
         // Программирование
         new("🐍", "Язык Python"),

@@ -4,10 +4,13 @@ namespace NotiFIITBot.Domain;
 
 public static class ScheduleFormatter
 {
+    private static readonly string DaysSeparator = new('=', 25);
+    private static readonly string LessonsSeparator = new('-', 30);
+
     public static string BuildDailySchedule(DateOnly date, List<Lesson> lessons)
     {
         var strBuilder = new StringBuilder();
-        strBuilder.AppendLine($"{EmojiProvider.Calendar} {DayOfWeekInRus(lessons[0].DayOfWeek)} ({date:dd.MM.yyyy})");
+        strBuilder.AppendLine(GetUserFriendlyDate(date));
         strBuilder.AppendLine();
 
         if (lessons.Count == 0)
@@ -28,7 +31,7 @@ public static class ScheduleFormatter
 
             strBuilder.AppendLine(FormatFullLocation(lesson));
             
-            strBuilder.AppendLine("------------------------------------");
+            strBuilder.AppendLine(LessonsSeparator);
             strBuilder.AppendLine();
         }
 
@@ -41,17 +44,17 @@ public static class ScheduleFormatter
 
         foreach (var (date, lessons) in schedule.OrderBy(x => x.Key))
         {
-            sb.AppendLine($"{EmojiProvider.Calendar} {DayOfWeekInRus(date.DayOfWeek)} ({date:dd.MM.yyyy})");
+            sb.AppendLine(GetUserFriendlyDate(date));
             sb.AppendLine();
 
             if (lessons.Count == 0)
             {
                 sb.AppendLine($"Выходной {EmojiProvider.Monkey}");
-                sb.AppendLine("==============================");
+                sb.AppendLine(DaysSeparator);
                 sb.AppendLine();
                 continue;
             }
-            
+
             var sortedLessons = lessons.OrderBy(l => l.Begin).ToList();
             for (var i = 0; i < sortedLessons.Count; i++)
             {
@@ -64,18 +67,18 @@ public static class ScheduleFormatter
 
                 if (i < sortedLessons.Count - 1)
                 {
-                    sb.AppendLine("------------------------------------");
+                    sb.AppendLine(LessonsSeparator);
                 }
             }
 
             sb.AppendLine();
-            sb.AppendLine("==============================");
+            sb.AppendLine(DaysSeparator);
             sb.AppendLine();
         }
 
         return sb.ToString();
     }
-    
+
     private static string FormatFullLocation(Lesson lesson)
     {
         var loc = lesson.AuditoryLocation ?? "";
@@ -88,6 +91,11 @@ public static class ScheduleFormatter
         var locEmoji = EmojiProvider.GetLocationEmoji(loc);
         var locPart = string.IsNullOrEmpty(loc) ? "" : $"{loc}; ";
         return $"{locEmoji} {locPart}<i>Ауд. {room}</i>";
+    }
+
+    private static string GetUserFriendlyDate(DateOnly date)
+    {
+        return $"{EmojiProvider.Calendar} <u><b>{DayOfWeekInRus(date.DayOfWeek)} ({date:dd.MM.yyyy})</b></u>";
     }
 
     private static string DayOfWeekInRus(DayOfWeek? dayOfWeek)

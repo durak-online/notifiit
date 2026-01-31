@@ -2,10 +2,8 @@
 using Microsoft.Extensions.DependencyInjection;
 using NotiFIITBot.Database.Data;
 using NotiFIITBot.Logging;
-using NotiFIITBot.Metrics;
 using Serilog;
 using Quartz;
-using Quartz.Impl;
 
 namespace NotiFIITBot.App;
 
