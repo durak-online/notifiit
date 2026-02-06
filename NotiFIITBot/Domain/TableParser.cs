@@ -86,7 +86,7 @@ public partial class TableParser
             var columnGroupMap = BuildGroupMap(values[1]);
 
             // Определение подгрупп
-            var columnSubgroupMap = BuildSubgroupMap(values[2]);
+            var columnSubgroupMap = BuildSubgroupMap(values[1]);
 
             return ProcessSheetRows(values, gridData, columnGroupMap, columnSubgroupMap);
         }
@@ -147,7 +147,8 @@ public partial class TableParser
             {
                 var lessonCell = row[j]?.ToString();
 
-                if (string.IsNullOrWhiteSpace(lessonCell) || !columnSubgroupMap.ContainsKey(j)) continue;
+                if (string.IsNullOrWhiteSpace(lessonCell) || !columnSubgroupMap.ContainsKey(j))
+                    continue;
 
                 var lessonInfo = GetCleanLessonInfo(lessonCell);
                 if (lessonInfo == null) continue;
@@ -217,18 +218,18 @@ public partial class TableParser
         return currentDayOfWeek;
     }
 
+    /// <summary>
+    ///     Строит по строке с группами словарь "номер ряда - подгруппа"
+    /// </summary>
     private static Dictionary<int, int> BuildSubgroupMap(IList<object> subgroupsRow)
     {
         var columnSubgroupMap = new Dictionary<int, int>();
-
         for (var j = 0; j < subgroupsRow.Count; j++)
         {
             var subgroupCell = subgroupsRow[j]?.ToString();
             if (!string.IsNullOrWhiteSpace(subgroupCell))
-                if (int.TryParse(subgroupCell.AsSpan().Slice(subgroupCell.Length - 1), out var subgroupNumber))
-                    columnSubgroupMap[j] = subgroupNumber;
+                    columnSubgroupMap[j] = (j % 2) + 1;
         }
-
         return columnSubgroupMap;
     }
 
