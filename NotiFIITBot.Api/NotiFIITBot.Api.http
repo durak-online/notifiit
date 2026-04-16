@@ -1,0 +1,25 @@
+@NotiFIITBot.Api_HostAddress = http://localhost:5000
+
+### 1. Получить расписание на конкретную дату (через query-параметры)
+GET {{NotiFIITBot.Api_HostAddress}}/api/schedule?groupId=240801&subgroup=1&specificDate=2026-04-15
+Accept: application/json
+
+### 2. Получить расписание на конкретную дату (через шаблон URL)
+GET {{NotiFIITBot.Api_HostAddress}}/api/schedule/2026-04-15?groupId=240801&subgroup=1
+Accept: application/json
+
+### 3. Получить расписание за период (месяц)
+GET {{NotiFIITBot.Api_HostAddress}}/api/schedule?groupId=240801&subgroup=2&startDate=2026-04-01&endDate=2026-04-30
+Accept: application/json
+
+### 4. Получить расписание за период (неделя) – без указания подгруппы (вернутся уроки для подгрупп 0,1,2)
+GET {{NotiFIITBot.Api_HostAddress}}/api/schedule?groupId=240801&startDate=2026-04-10&endDate=2026-04-16
+Accept: application/json
+
+### 5. Ошибка: не указана группа
+GET {{NotiFIITBot.Api_HostAddress}}/api/schedule?subgroup=1&specificDate=2026-04-15
+Accept: application/json
+
+### 6. Ошибка: не указана дата или период
+GET {{NotiFIITBot.Api_HostAddress}}/api/schedule?groupId=240801&subgroup=1
+Accept: application/json
