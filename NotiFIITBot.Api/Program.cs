@@ -3,6 +3,15 @@ using NotiFIITBot.Database.Data;
 using NotiFIITBot.Consts;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAll", policy =>
+    {
+        policy.WithOrigins("http://localhost:63343") // Разрешаем конкретно ваш фронтенд
+            .AllowAnyMethod()
+            .AllowAnyHeader();
+    });
+});
 
 var connectionString = $"Host=localhost;" +
                        $"Port=5434;Database={EnvReader.PostgresDbName};" +
@@ -16,6 +25,7 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Logging.SetMinimumLevel(LogLevel.Debug);
 
 var app = builder.Build();
+app.UseCors("AllowAll");
 
 app.UseHttpsRedirection();
 app.UseAuthorization();
