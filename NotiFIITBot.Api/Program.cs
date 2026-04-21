@@ -7,7 +7,11 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll", policy =>
     {
-        policy.WithOrigins("http://localhost:63343") // Разрешаем конкретно ваш фронтенд
+        policy.SetIsOriginAllowed(origin =>
+            {
+                var uri = new Uri(origin);
+                return uri.Host == "localhost";
+            })
             .AllowAnyMethod()
             .AllowAnyHeader();
     });
