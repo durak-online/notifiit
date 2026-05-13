@@ -5,13 +5,15 @@ using NotiFIITBot.Consts;
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowAll", policy =>
+    options.AddPolicy("AllowSpecificOrigins", policy =>
     {
-        policy.SetIsOriginAllowed(origin =>
-            {
-                var uri = new Uri(origin);
-                return uri.Host == "localhost";
-            })
+        policy.WithOrigins("https://kin211.github.io/notifiit_web")
+            .AllowAnyMethod()
+            .AllowAnyHeader();
+    });
+    options.AddPolicy("AllowDynamicOrigins", policy =>
+    {
+        policy.SetIsOriginAllowed(origin => origin.StartsWith("http://localhost", StringComparison.OrdinalIgnoreCase))
             .AllowAnyMethod()
             .AllowAnyHeader();
     });
